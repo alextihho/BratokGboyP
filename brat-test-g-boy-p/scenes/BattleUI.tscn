@@ -1,0 +1,59 @@
+[gd_scene load_steps=3 format=3 uid="uid://be23gfgavfb7m"]
+
+[ext_resource type="Script" uid="uid://cyere2ecl4bm" path="res://scripts/systems/battle.gd" id="1_d17lq"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d17lq"]
+bg_color = Color(0.13715222, 0.13424045, 0.11353844, 1)
+
+[node name="BattleUi" type="CanvasLayer"]
+script = ExtResource("1_d17lq")
+
+[node name="Panel" type="Panel" parent="."]
+custom_minimum_size = Vector2(400, 400)
+offset_left = 160.0
+offset_top = 300.0
+offset_right = 560.0
+offset_bottom = 700.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_d17lq")
+
+[node name="PlayerHP" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 121.0
+offset_bottom = 33.0
+theme_override_font_sizes/font_size = 18
+text = "HP Игрок: 100"
+
+[node name="EnemyHP" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 40.0
+offset_right = 100.0
+offset_bottom = 63.0
+theme_override_font_sizes/font_size = 18
+text = "HP Враг: 80"
+
+[node name="Attack" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 70.0
+offset_right = 110.0
+offset_bottom = 101.0
+text = "Атаковать"
+
+[node name="Deffend" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 110.0
+offset_right = 117.0
+offset_bottom = 141.0
+text = "Защититься"
+
+[node name="Run" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 150.0
+offset_right = 78.0
+offset_bottom = 181.0
+text = "Бежать"
