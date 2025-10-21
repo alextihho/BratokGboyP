@@ -84,10 +84,10 @@ func show_enemy_selection_menu(main_node):
 	
 	enemy_menu.add_child(close_btn)
 
-func start_battle(main_node, enemy_type: String = "gopnik", is_first_battle: bool = false):
-	print("⚔️ Запуск боя: " + enemy_type + " (банда: %d чел.)" % main_node.gang_members.size())
+func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battle: bool = false):
+	print("⚔️ Запуск боя: " + enemy_type)
 	
-	var battle_script = load("res://scripts/systems/battle.gd")
+	var battle_script = load("res://scripts/battle/battle.gd")  # ✅ Новый путь
 	if not battle_script:
 		main_node.show_message("❌ Система боёв не найдена!")
 		return
@@ -95,32 +95,23 @@ func start_battle(main_node, enemy_type: String = "gopnik", is_first_battle: boo
 	var battle = battle_script.new()
 	battle.name = "BattleScene"
 	main_node.add_child(battle)
-	
-	# ✅ КРИТИЧНО: Передаём банду в бой!
-	battle.setup(main_node.player_data, enemy_type, is_first_battle, main_node.gang_members)
+	battle.setup(main_node.player_data, enemy_type, is_first_battle)
 	
 	battle.battle_ended.connect(func(victory):
-		# Обновляем HP членов банды после боя
-		if battle.player_team.size() > 0:
-			main_node.player_data["health"] = battle.player_team[0]["hp"]
-			
-			# Обновляем HP членов банды
-			for i in range(1, min(battle.player_team.size(), main_node.gang_members.size())):
-				if i < main_node.gang_members.size():
-					main_node.gang_members[i]["health"] = battle.player_team[i]["hp"]
+		if battle.player_data and battle.player_data.has("health"):
+			main_node.player_data["health"] = battle.player_data["health"]
 		
 		if victory:
 			main_node.show_message("✅ Победа в бою!")
-			
-			# Прокачка навыков всех участников
 			if quest_system:
 				quest_system.check_quest_progress("combat", {"victory": true})
+				quest_system.check_quest_progress("collect", {"balance": main_node.player_data["balance"]})
 			
 			if districts_system and main_node.current_location:
 				var district = districts_system.get_district_by_building(main_node.current_location)
-				var influence_gain = 5 + battle.enemy_team.size()
+				var influence_gain = 5
 				districts_system.add_influence(district, "Игрок", influence_gain)
-				main_node.show_message("🏴 Влияние увеличено на " + str(influence_gain) + "%")
+				main_node.show_message("🏴 Влияние в районе увеличено на " + str(influence_gain) + "%")
 		else:
 			main_node.show_message("💀 Поражение...")
 		

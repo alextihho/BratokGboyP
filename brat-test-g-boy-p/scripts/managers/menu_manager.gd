@@ -152,20 +152,25 @@ func handle_menu_option(option: String, main_node: Node):
 			main_node.get_tree().quit()
 
 func save_game(main_node: Node):
-	var quest_data = {}
-	if quest_system:
-		quest_data = {
-			"active_quests": quest_system.active_quests.duplicate(true),
-			"completed_quests": quest_system.completed_quests.duplicate(true)
-		}
+	if not save_manager:
+		main_node.show_message("❌ Система сохранений недоступна!")
+		return
 	
-	var success = save_manager.save_game(player_data, gang_members, quest_data)
+	var success = save_manager.save_game(
+		main_node.player_data,
+		main_node.gang_members
+	)
+	
 	if success:
 		main_node.show_message("💾 Игра сохранена!")
 	else:
 		main_node.show_message("❌ Ошибка сохранения!")
 
 func load_game(main_node: Node):
+	if not save_manager:
+		main_node.show_message("❌ Система сохранений недоступна!")
+		return
+	
 	if not save_manager.has_save():
 		main_node.show_message("⚠️ Нет сохранённой игры!")
 		return
@@ -175,19 +180,8 @@ func load_game(main_node: Node):
 		main_node.show_message("❌ Ошибка загрузки!")
 		return
 	
-	player_data = save_data.get("player_data", player_data)
-	gang_members = save_data.get("gang_members", gang_members)
+	main_node.load_game_from_data(save_data)
 	
-	if quest_system and save_data.has("quest_system"):
-		var quest_data = save_data["quest_system"]
-		quest_system.active_quests = quest_data.get("active_quests", [])
-		quest_system.completed_quests = quest_data.get("completed_quests", [])
-	
-	if player_stats:
-		var items_db = get_node("/root/ItemsDB")
-		player_stats.recalculate_equipment_bonuses(player_data["equipment"], items_db)
-	
-	main_node.update_ui()
 	main_node.show_message("✅ Игра загружена!")
 	
 	var menu_layer = main_node.get_node_or_null("MainMenuLayer")

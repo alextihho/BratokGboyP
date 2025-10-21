@@ -1,7 +1,11 @@
-# main.gd (ИСПРАВЛЕНО - ПРАВИЛЬНЫЕ КООРДИНАТЫ)
+# main.gd (РЕФАКТОРИНГ - 150 СТРОК)
 extends Node2D
 
-# ========== МЕНЕДЖЕРЫ ==========
+# ===== КОМПОНЕНТЫ =====
+var game_initializer
+var input_handler
+
+# ===== МЕНЕДЖЕРЫ =====
 var map_manager
 var ui_controller
 var action_handler
@@ -11,7 +15,7 @@ var districts_menu_manager
 var battle_manager
 var grid_movement_manager
 
-# ========== СИСТЕМЫ (AUTOLOAD) ==========
+# ===== СИСТЕМЫ (AUTOLOAD) =====
 var items_db
 var building_system
 var player_stats
@@ -25,16 +29,16 @@ var simple_jobs
 var hospital_system
 var time_system
 
-# ========== ИГРОВЫЕ СИСТЕМЫ ==========
+# ===== ИГРОВЫЕ СИСТЕМЫ =====
 var grid_system
 var movement_system
 
-# ========== СОСТОЯНИЕ ИГРЫ ==========
+# ===== СОСТОЯНИЕ ИГРЫ =====
 var current_location = null
 var menu_open = false
 var first_battle_started = false
 
-# ========== ДАННЫЕ ЛОКАЦИЙ ==========
+# ===== ДАННЫЕ ЛОКАЦИЙ =====
 var locations = {
 	"ОБЩЕЖИТИЕ": {"position": Vector2(500, 200), "actions": ["Отдохнуть", "Поговорить с другом", "Взять вещи"], "grid_square": "6_2"},
 	"ЛАРЁК": {"position": Vector2(200, 350), "actions": ["Купить пиво (30р)", "Купить сигареты (15р)", "Купить кепку (50р)"], "grid_square": "2_4"},
@@ -43,11 +47,10 @@ var locations = {
 	"РЫНОК": {"position": Vector2(300, 850), "actions": ["Купить кожанку (200р)", "Продать вещь", "Узнать новости"], "grid_square": "5_10"},
 	"ПОРТ": {"position": Vector2(600, 450), "actions": ["Купить ПМ (500р)", "Купить отмычку (100р)", "Уйти"], "grid_square": "10_5"},
 	"УЛИЦА": {"position": Vector2(150, 1050), "actions": ["Прогуляться", "Встретить знакомого", "Посмотреть вокруг"], "grid_square": "2_13"},
-	"БОЛЬНИЦА": {"position": Vector2(400, 500), "actions": ["Лечиться", "Купить аптечку (100р)", "Уйти"], "grid_square": "6_6"},
-	"ФСБ": {"position": Vector2(350, 800), "actions": ["Дать взятку", "Уйти"], "grid_square": "5_9"}
+	"БОЛЬНИЦА": {"position": Vector2(400, 500), "actions": ["Лечиться", "Купить аптечку (100р)", "Уйти"], "grid_square": "6_6"}
 }
 
-# ========== ДАННЫЕ ИГРОКА ==========
+# ===== ДАННЫЕ ИГРОКА =====
 var player_data = {
 	"balance": 150,
 	"health": 100,
@@ -59,7 +62,7 @@ var player_data = {
 	"current_square": "6_2"
 }
 
-# ========== ДАННЫЕ БАНДЫ ==========
+# ===== ДАННЫЕ БАНДЫ =====
 var gang_members = [
 	{
 		"name": "Главный (ты)",
@@ -72,198 +75,26 @@ var gang_members = [
 ]
 
 func _ready():
-	load_autoload_systems()
-	setup_grid_and_movement()
-	initialize_managers()
-	setup_game_systems()
-	connect_signals()
+	# Загружаем компоненты
+	game_initializer = preload("res://scripts/core/game_initializer.gd").new()
+	input_handler = preload("res://scripts/core/input_handler.gd").new()
+	
+	# Инициализация
+	game_initializer.load_autoload_systems(self)
+	game_initializer.setup_grid_and_movement(self)
+	game_initializer.initialize_managers(self)
+	game_initializer.setup_game_systems(self)
+	game_initializer.connect_signals(self)
+	
 	show_intro_text()
-	print("✅ Игра готова! (ИСПРАВЛЕНЫ КООРДИНАТЫ КЛИКОВ)")
+	print("✅ Игра готова! (РЕФАКТОРИНГ)")
 
-func load_autoload_systems():
-	items_db = get_node("/root/ItemsDB")
-	building_system = get_node("/root/BuildingSystem")
-	player_stats = get_node("/root/PlayerStats")
-	quest_system = get_node_or_null("/root/QuestSystem")
-	random_events = get_node_or_null("/root/RandomEvents")
-	inventory_manager = get_node("/root/InventoryManager")
-	gang_manager = get_node("/root/GangManager")
-	save_manager = get_node("/root/SaveManager")
-	districts_system = get_node_or_null("/root/DistrictsSystem")
-	simple_jobs = get_node_or_null("/root/SimpleJobs")
-	hospital_system = get_node_or_null("/root/HospitalSystem")
-	time_system = get_node_or_null("/root/TimeSystem")
-
-func setup_grid_and_movement():
-	var grid_script = load("res://scripts/systems/grid_system.gd")
-	if grid_script:
-		grid_system = grid_script.new()
-		grid_system.name = "GridSystem"
-		add_child(grid_system)
-		move_child(grid_system, get_child_count() - 1)
-		print("🗺️ Сетка создана")
-	
-	var movement_script = load("res://scripts/systems/movement_system.gd")
-	if movement_script:
-		movement_system = movement_script.new()
-		movement_system.name = "MovementSystem"
-		add_child(movement_system)
-		if grid_system:
-			movement_system.initialize(grid_system)
-	
-	if grid_system:
-		for location_name in locations:
-			var location = locations[location_name]
-			if location.has("grid_square"):
-				grid_system.set_building(location["grid_square"], location_name)
-		grid_system.set_player_square(player_data["current_square"])
-		print("✅ Здания размещены: " + str(locations.size()))
-
-func initialize_managers():
-	map_manager = preload("res://scripts/managers/map_manager.gd").new()
-	map_manager.name = "MapManager"
-	add_child(map_manager)
-	map_manager.initialize(self, locations)
-	map_manager.location_clicked.connect(on_location_clicked)
-	
-	ui_controller = preload("res://scripts/managers/ui_controller.gd").new()
-	ui_controller.name = "UIController"
-	add_child(ui_controller)
-	ui_controller.initialize(self, player_data)
-	var ui_layer = ui_controller.get_ui_layer()
-	if ui_layer:
-		ui_layer.layer = 50
-	
-	action_handler = preload("res://scripts/managers/action_handler.gd").new()
-	action_handler.name = "ActionHandler"
-	add_child(action_handler)
-	action_handler.initialize(player_data)
-	
-	menu_manager = preload("res://scripts/managers/menu_manager.gd").new()
-	menu_manager.name = "MenuManager"
-	add_child(menu_manager)
-	menu_manager.initialize(player_data, gang_members)
-	
-	clicker_system = preload("res://scripts/managers/clicker_system.gd").new()
-	clicker_system.name = "ClickerSystem"
-	add_child(clicker_system)
-	clicker_system.initialize(ui_controller.get_ui_layer(), player_data)
-	
-	districts_menu_manager = preload("res://scripts/managers/districts_menu_manager.gd").new()
-	districts_menu_manager.name = "DistrictsMenuManager"
-	add_child(districts_menu_manager)
-	districts_menu_manager.initialize()
-	
-	battle_manager = preload("res://scripts/managers/battle_manager.gd").new()
-	battle_manager.name = "BattleManager"
-	add_child(battle_manager)
-	battle_manager.initialize()
-	
-	var grid_movement_script = load("res://scripts/managers/grid_movement_manager.gd")
-	if grid_movement_script:
-		grid_movement_manager = grid_movement_script.new()
-		grid_movement_manager.name = "GridMovementManager"
-		add_child(grid_movement_manager)
-		grid_movement_manager.initialize(self, grid_system, movement_system)
-
-func setup_game_systems():
-	if player_stats:
-		player_stats.recalculate_equipment_bonuses(player_data["equipment"], items_db)
-		player_stats.stat_leveled_up.connect(show_level_up_message)
-	
-	if quest_system:
-		quest_system.start_quest("first_money")
-		quest_system.start_quest("buy_weapon")
-		quest_system.start_quest("win_fights")
-		quest_system.quest_completed.connect(on_quest_completed)
-	
-	if districts_system:
-		districts_system.district_captured.connect(on_district_captured)
-
-func connect_signals():
-	if time_system:
-		time_system.time_changed.connect(_on_time_changed)
-		time_system.day_changed.connect(_on_day_changed)
-		time_system.time_of_day_changed.connect(_on_time_of_day_changed)
-
-# ========================================
-# ОБРАБОТКА ВВОДА (ИСПРАВЛЕНО - VIEWPORT КООРДИНАТЫ!)
-# ========================================
-
+# ===== ОБРАБОТКА ВВОДА =====
 func _unhandled_input(event):
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			# ✅ КРИТИЧНО: Используем позицию ВНУТРИ viewport, а не глобальную!
-			var click_pos = get_viewport().get_mouse_position()
-			
-			print("🎯 CLICK: " + str(click_pos))
-			
-			# Блокируем если идёт бой
-			if get_node_or_null("BattleScene"):
-				print("⚠️ Бой идёт")
-				return
-			
-			# Проверяем открытые меню
-			if has_any_menu_open():
-				print("⚠️ Меню открыто")
-				return
-			
-			# Дополнительная проверка UI зон
-			if is_click_on_ui(click_pos):
-				print("⚠️ Клик на UI")
-				return
-			
-			print("✅ Клик на сетку разрешён")
-			
-			# Проверка клика по сетке
-			if grid_movement_manager:
-				grid_movement_manager.handle_grid_click(click_pos)
-			
-			# Отмечаем что обработали
-			get_viewport().set_input_as_handled()
+	if input_handler.handle_input(event, self):
+		get_viewport().set_input_as_handled()
 
-# ✅ Проверка клика на UI
-func is_click_on_ui(click_pos: Vector2) -> bool:
-	# Верхняя панель: y < 120
-	if click_pos.y < 120:
-		print("   → Верхняя панель")
-		return true
-	
-	# Нижняя панель: y >= 1180
-	if click_pos.y >= 1180:
-		print("   → Нижняя панель y=%d" % click_pos.y)
-		return true
-	
-	# Кнопка заработка
-	if click_pos.x >= 590 and click_pos.x <= 710 and click_pos.y >= 55 and click_pos.y <= 105:
-		print("   → Кнопка заработка")
-		return true
-	
-	# Кнопка сетки
-	if click_pos.x >= 540 and click_pos.x <= 590 and click_pos.y >= 55 and click_pos.y <= 85:
-		print("   → Кнопка сетки")
-		return true
-	
-	return false
-
-# ✅ Проверка открытых меню
-func has_any_menu_open() -> bool:
-	var menus = [
-		"BuildingMenu", "GangMenu", "InventoryMenu", "QuestMenu",
-		"DistrictsMenu", "MainMenuLayer", "MovementMenu",
-		"HospitalMenu", "JobsMenu", "SellMenu"
-	]
-	
-	for menu_name in menus:
-		if get_node_or_null(menu_name):
-			return true
-	
-	return false
-
-# ========================================
-# МЕНЮ ЛОКАЦИЙ
-# ========================================
-
+# ===== МЕНЮ ЛОКАЦИЙ =====
 func show_location_menu(location_name: String):
 	current_location = location_name
 	menu_open = true
@@ -311,10 +142,7 @@ func on_location_clicked(location_name: String):
 	show_location_menu(location_name)
 	action_handler.trigger_location_events(location_name, self)
 
-# ========================================
-# КНОПКИ НИЖНЕЙ ПАНЕЛИ
-# ========================================
-
+# ===== КНОПКИ НИЖНЕЙ ПАНЕЛИ =====
 func on_bottom_button_pressed(button_name: String):
 	match button_name:
 		"Банда":
@@ -326,10 +154,7 @@ func on_bottom_button_pressed(button_name: String):
 		"Меню":
 			menu_manager.show_main_menu(self)
 
-# ========================================
-# ОБНОВЛЕНИЕ UI
-# ========================================
-
+# ===== ОБНОВЛЕНИЕ UI =====
 func update_ui():
 	ui_controller.update_ui()
 	clicker_system.player_data = player_data
@@ -346,10 +171,7 @@ func update_time_ui():
 func show_message(text: String):
 	ui_controller.show_message(text, self)
 
-# ========================================
-# СОБЫТИЯ ВРЕМЕНИ
-# ========================================
-
+# ===== СОБЫТИЯ ВРЕМЕНИ =====
 func _on_time_changed(_hour: int, _minute: int):
 	update_time_ui()
 
@@ -372,10 +194,7 @@ func _on_time_of_day_changed(period: String):
 	if period in messages:
 		show_message(messages[period])
 
-# ========================================
-# ОСТАЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ)
-# ========================================
-
+# ===== ВСТУПЛЕНИЕ =====
 func show_intro_text():
 	var intro_layer = CanvasLayer.new()
 	intro_layer.name = "IntroLayer"
@@ -401,6 +220,7 @@ func show_intro_text():
 		if battle_manager:
 			battle_manager.start_battle(self, "gopnik", false)
 
+# ===== УРОВЕНЬ ХАРАКТЕРИСТИК =====
 func show_level_up_message(stat_name: String, new_level: int):
 	var level_up_layer = CanvasLayer.new()
 	level_up_layer.name = "LevelUpLayer"
@@ -437,6 +257,7 @@ func show_level_up_message(stat_name: String, new_level: int):
 	)
 	timer.start()
 
+# ===== КВЕСТЫ =====
 func on_quest_completed(quest_id: String):
 	if not quest_system:
 		return
@@ -456,9 +277,11 @@ func on_quest_completed(quest_id: String):
 		show_message(reward_text)
 		update_ui()
 
+# ===== РАЙОНЫ =====
 func on_district_captured(district_name: String, by_gang: String):
 	districts_menu_manager.show_district_captured_notification(self, district_name, by_gang)
 
+# ===== БОЙ =====
 func show_enemy_selection_menu():
 	battle_manager.show_enemy_selection_menu(self)
 
