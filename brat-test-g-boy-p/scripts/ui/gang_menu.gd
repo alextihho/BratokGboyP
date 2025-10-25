@@ -1,24 +1,32 @@
-# gang_menu.gd (ИСПРАВЛЕНО - layer 200)
+# gang_menu.gd (ИСПРАВЛЕНО - кнопки активации + is_active)
 extends CanvasLayer
 
 signal member_inventory_clicked(member_index: int)
+signal member_activated(member_index: int, is_active: bool)
 
 var gang_members = []
 var gang_generator
 
 func _ready():
-	layer = 200  # ✅ КРИТИЧНО! ВЫШЕ сетки (5) и UI (50)
+	layer = 200
 	gang_generator = get_node("/root/GangMemberGenerator")
 
 func setup(members):
 	gang_members = members
+	
+	# ✅ ВАЖНО: Инициализируем is_active для всех членов
+	for i in range(gang_members.size()):
+		if not gang_members[i].has("is_active"):
+			# Главный игрок (индекс 0) всегда активен
+			gang_members[i]["is_active"] = (i == 0)
+	
 	create_ui()
 
 func create_ui():
 	for child in get_children():
 		child.queue_free()
 	
-	# ✅ Overlay для блокировки кликов
+	# Overlay
 	var overlay = ColorRect.new()
 	overlay.size = Vector2(720, 1280)
 	overlay.position = Vector2(0, 0)
@@ -40,6 +48,19 @@ func create_ui():
 	title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 1.0))
 	add_child(title)
 	
+	# ✅ Счётчик активных бойцов
+	var active_count = 0
+	for member in gang_members:
+		if member.get("is_active", false):
+			active_count += 1
+	
+	var active_label = Label.new()
+	active_label.text = "Активных бойцов: %d/%d" % [active_count, gang_members.size()]
+	active_label.position = Vector2(30, 200)
+	active_label.add_theme_font_size_override("font_size", 18)
+	active_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1.0))
+	add_child(active_label)
+	
 	var hire_btn = Button.new()
 	hire_btn.custom_minimum_size = Vector2(200, 50)
 	hire_btn.position = Vector2(480, 155)
@@ -58,20 +79,58 @@ func create_ui():
 	hire_btn.pressed.connect(func(): show_hire_menu())
 	add_child(hire_btn)
 	
-	var member_y = 220
+	var member_y = 240
 	for i in range(gang_members.size()):
 		var member = gang_members[i]
+		var is_active = member.get("is_active", false)
+		var is_main = (i == 0)
+		
+		# Цвет фона зависит от активности
+		var bg_color = Color(0.2, 0.2, 0.25, 1.0)
+		if is_active:
+			bg_color = Color(0.2, 0.3, 0.25, 1.0)  # Зеленоватый для активных
 		
 		var member_bg = ColorRect.new()
 		member_bg.size = Vector2(680, 150)
 		member_bg.position = Vector2(20, member_y)
-		member_bg.color = Color(0.2, 0.2, 0.25, 1.0)
+		member_bg.color = bg_color
 		member_bg.name = "MemberCard_" + str(i)
 		add_child(member_bg)
 		
+		# ✅ КНОПКА АКТИВАЦИИ (только для НЕ главного игрока)
+		if not is_main:
+			var activate_btn = Button.new()
+			activate_btn.custom_minimum_size = Vector2(50, 50)
+			activate_btn.position = Vector2(30, member_y + 50)
+			activate_btn.text = "✓" if is_active else "+"
+			activate_btn.name = "ActivateBtn_" + str(i)
+			
+			var style_activate = StyleBoxFlat.new()
+			if is_active:
+				style_activate.bg_color = Color(0.2, 0.7, 0.2, 1.0)  # Зеленая - активирован
+			else:
+				style_activate.bg_color = Color(0.5, 0.5, 0.5, 1.0)  # Серая - не активирован
+			activate_btn.add_theme_stylebox_override("normal", style_activate)
+			
+			var style_activate_hover = StyleBoxFlat.new()
+			style_activate_hover.bg_color = style_activate.bg_color * 1.2
+			activate_btn.add_theme_stylebox_override("hover", style_activate_hover)
+			
+			activate_btn.add_theme_font_size_override("font_size", 28)
+			
+			var member_idx = i
+			activate_btn.pressed.connect(func():
+				toggle_member_activation(member_idx)
+			)
+			add_child(activate_btn)
+		
 		var member_name = Label.new()
 		member_name.text = member["name"]
-		member_name.position = Vector2(30, member_y + 10)
+		if is_main:
+			member_name.text += " (главный)"
+		elif is_active:
+			member_name.text += " ✓"
+		member_name.position = Vector2(90 if not is_main else 30, member_y + 10)
 		member_name.add_theme_font_size_override("font_size", 22)
 		member_name.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
 		add_child(member_name)
@@ -79,21 +138,21 @@ func create_ui():
 		if member.has("background"):
 			var bg_label = Label.new()
 			bg_label.text = member["background"]
-			bg_label.position = Vector2(200, member_y + 15)
+			bg_label.position = Vector2(90 if not is_main else 30, member_y + 35)
 			bg_label.add_theme_font_size_override("font_size", 14)
 			bg_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7, 1.0))
 			add_child(bg_label)
 		
 		var member_hp = Label.new()
-		member_hp.text = "❤ HP: " + str(member["health"])
-		member_hp.position = Vector2(30, member_y + 40)
+		member_hp.text = "❤ HP: " + str(member.get("hp", member.get("health", 100)))
+		member_hp.position = Vector2(90 if not is_main else 30, member_y + 60)
 		member_hp.add_theme_font_size_override("font_size", 16)
 		member_hp.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 1.0))
 		add_child(member_hp)
 		
 		var member_str = Label.new()
-		member_str.text = "💪 Сила: " + str(member["strength"])
-		member_str.position = Vector2(30, member_y + 65)
+		member_str.text = "💪 Сила: " + str(member.get("damage", member.get("strength", 10)))
+		member_str.position = Vector2(90 if not is_main else 30, member_y + 85)
 		member_str.add_theme_font_size_override("font_size", 16)
 		member_str.add_theme_color_override("font_color", Color(0.8, 0.8, 1.0, 1.0))
 		add_child(member_str)
@@ -106,7 +165,7 @@ func create_ui():
 				player_stats.equipment_bonuses["defense"],
 				player_stats.calculate_evasion()
 			]
-			quick_stats.position = Vector2(30, member_y + 90)
+			quick_stats.position = Vector2(30, member_y + 110)
 			quick_stats.add_theme_font_size_override("font_size", 14)
 			quick_stats.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7, 1.0))
 			add_child(quick_stats)
@@ -157,7 +216,6 @@ func create_ui():
 		
 		member_y += 170
 	
-	# ✅ Кнопка закрыть поднята
 	var close_btn = Button.new()
 	close_btn.custom_minimum_size = Vector2(680, 50)
 	close_btn.position = Vector2(20, 1110)
@@ -178,6 +236,36 @@ func create_ui():
 	close_btn.pressed.connect(func(): queue_free())
 	add_child(close_btn)
 
+# ✅ НОВАЯ ФУНКЦИЯ: Переключение активации члена банды
+func toggle_member_activation(member_index: int):
+	if member_index == 0:
+		return  # Главный игрок всегда активен
+	
+	if member_index >= gang_members.size():
+		return
+	
+	var member = gang_members[member_index]
+	var is_active = member.get("is_active", false)
+	
+	# Переключаем статус
+	member["is_active"] = not is_active
+	
+	var main_node = get_parent()
+	if main_node:
+		if member["is_active"]:
+			main_node.show_message("✅ %s добавлен в активную банду" % member["name"])
+		else:
+			main_node.show_message("❌ %s убран из активной банды" % member["name"])
+	
+	# Обновляем UI
+	member_activated.emit(member_index, member["is_active"])
+	queue_free()
+	
+	# Заново открываем меню банды
+	var gang_manager = get_node("/root/GangManager")
+	if gang_manager and main_node:
+		gang_manager.show_gang_menu(main_node, gang_members)
+
 func show_hire_menu():
 	var candidates = []
 	for i in range(3):
@@ -186,7 +274,7 @@ func show_hire_menu():
 	
 	var hire_menu = CanvasLayer.new()
 	hire_menu.name = "HireMenu"
-	hire_menu.layer = 210  # ✅ Еще выше
+	hire_menu.layer = 210
 	get_parent().add_child(hire_menu)
 	
 	var overlay = ColorRect.new()
@@ -290,9 +378,35 @@ func hire_candidate(candidate: Dictionary, cost: int, hire_menu: CanvasLayer):
 		return
 	
 	main_node.player_data["balance"] -= cost
+	
+	# ✅ ВАЖНО: Новый член НЕ активен по умолчанию
+	candidate["is_active"] = false
+	
+	# ✅ Стандартизируем поля
+	if not candidate.has("hp"):
+		candidate["hp"] = candidate.get("health", 80)
+	if not candidate.has("max_hp"):
+		candidate["max_hp"] = candidate["hp"]
+	if not candidate.has("damage"):
+		candidate["damage"] = candidate.get("strength", 10)
+	if not candidate.has("defense"):
+		candidate["defense"] = 0
+	if not candidate.has("morale"):
+		candidate["morale"] = 80
+	if not candidate.has("accuracy"):
+		candidate["accuracy"] = 0.65
+	if not candidate.has("weapon"):
+		candidate["weapon"] = "Кулаки"
+	if not candidate.has("inventory"):
+		candidate["inventory"] = []
+	if not candidate.has("equipment"):
+		candidate["equipment"] = {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null}
+	if not candidate.has("pockets"):
+		candidate["pockets"] = [null, null, null]
+	
 	main_node.gang_members.append(candidate)
 	
-	main_node.show_message("✅ " + candidate["name"] + " присоединился к банде!")
+	main_node.show_message("✅ " + candidate["name"] + " нанят! Активируйте его в меню банды.")
 	main_node.update_ui()
 	
 	hire_menu.queue_free()
@@ -308,7 +422,7 @@ func show_stats_window():
 	
 	var stats_popup = CanvasLayer.new()
 	stats_popup.name = "StatsPopup"
-	stats_popup.layer = 210  # ✅ Выше всего
+	stats_popup.layer = 210
 	get_parent().add_child(stats_popup)
 	
 	var overlay = ColorRect.new()

@@ -241,3 +241,102 @@ func simulate_rival_actions():
 			add_influence(target_district, gang["name"], influence_gain)
 			
 			print("🎲 Банда '%s' усилила влияние в районе '%s' на %d%%" % [gang["name"], target_district, influence_gain])
+func modify_influence(district_name: String, gang_name: String, amount: int):
+	"""
+	Изменяет влияние банды в районе
+	"""
+	for district in districts:
+		if district.get("name", "") == district_name:
+			# Инициализируем influence если нет
+			if not district.has("influence"):
+				district["influence"] = {}
+			
+			# Получаем текущее влияние
+			var current_influence = district["influence"].get(gang_name, 0)
+			
+			# Вычисляем новое влияние (от 0 до 100)
+			var new_influence = clamp(current_influence + amount, 0, 100)
+			
+			# Сохраняем новое влияние
+			district["influence"][gang_name] = new_influence
+			
+			print("📈 %s влияние в '%s': %d%% → %d%%" % [
+				gang_name, 
+				district_name, 
+				current_influence, 
+				new_influence
+			])
+			
+			# ✅ ИСПРАВЛЕНО: Проверяем наличие функции capture_district
+			# Автозахват при 100%
+			if new_influence >= 100 and district.get("owner", "") != gang_name:
+				print("🏴 Автозахват района '%s' бандой '%s'" % [district_name, gang_name])
+				
+				# ✅ Вариант 1: Если есть функция capture_district - используем
+				if has_method("capture_district"):
+					capture_district(district_name, gang_name)
+				else:
+					# ✅ Вариант 2: Захватываем вручную
+					district["owner"] = gang_name
+					print("✅ Район '%s' захвачен бандой '%s'" % [district_name, gang_name])
+			
+			return
+	
+	print("⚠️ Район не найден: " + district_name)
+
+# ✅ ФУНКЦИЯ 2: Получение данных района
+func get_district(district_name: String) -> Dictionary:
+	"""
+	Возвращает полные данные района по имени
+	"""
+	for district in districts:
+		if district.get("name", "") == district_name:
+			return district
+	
+	print("⚠️ Район не найден: " + district_name)
+	return {}
+
+# ===== КОНЕЦ ВСТАВКИ =====
+
+# ===== ПРОВЕРКА =====
+# После вставки проверь что в твоём файле districts_system.gd ЕСТЬ функция:
+#
+# func capture_district(district_name: String, gang_name: String):
+#     ...
+#
+# Если НЕТ - добавь её тоже (см. ниже)
+# ===== КОНЕЦ ПРОВЕРКИ =====
+func capture_district(district_name: String, gang_name: String):
+	"""
+	Захватывает район бандой
+	
+	Параметры:
+	- district_name: Название района
+	- gang_name: Название банды (обычно "Игрок")
+	"""
+	for district in districts:
+		if district.get("name", "") == district_name:
+			var old_owner = district.get("owner", "Нейтральный")
+			
+			# Меняем владельца
+			district["owner"] = gang_name
+			
+			# Устанавливаем влияние на 100%
+			if not district.has("influence"):
+				district["influence"] = {}
+			district["influence"][gang_name] = 100
+			
+			print("🏴 Район '%s' захвачен! %s → %s" % [district_name, old_owner, gang_name])
+			
+			# Эмитируем сигнал если есть
+			if has_signal("district_captured"):
+				emit_signal("district_captured", district_name, gang_name)
+			
+			return
+	
+	print("⚠️ Район не найден: " + district_name)
+
+# ===== СИГНАЛ (добавь в начало файла если нет) =====
+# signal district_captured(district_name: String, gang_name: String)
+
+# ===== КОНЕЦ ВСТАВКИ =====

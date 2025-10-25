@@ -1,4 +1,4 @@
-# main.gd (РЕФАКТОРИНГ - 150 СТРОК)
+# main.gd (ИСПРАВЛЕНО - первый бой только раз)
 extends Node2D
 
 # ===== КОМПОНЕНТЫ =====
@@ -59,7 +59,8 @@ var player_data = {
 	"equipment": {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null},
 	"inventory": ["Пачка сигарет", "Булка", "Нож"],
 	"pockets": [null, null, null],
-	"current_square": "6_2"
+	"current_square": "6_2",
+	"first_battle_completed": false  # ✅ Добавлено!
 }
 
 # ===== ДАННЫЕ БАНДЫ =====
@@ -70,7 +71,8 @@ var gang_members = [
 		"strength": 10,
 		"equipment": {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null},
 		"inventory": [],
-		"pockets": [null, null, null]
+		"pockets": [null, null, null],
+		"is_active": true  # ✅ Главный всегда активен
 	}
 ]
 
@@ -115,12 +117,11 @@ func show_location_menu(location_name: String):
 	
 	building_menu.action_selected.connect(func(action_index):
 		handle_location_action(action_index)
-		close_location_menu()
 	)
 	
 	building_menu.menu_closed.connect(func():
-		close_location_menu()
-	)
+		close_location_menu()  # ✅ Только по кнопке "Закрыть"
+)
 
 func handle_location_action(action_index: int):
 	if current_location == null:
@@ -211,8 +212,11 @@ func show_intro_text():
 	await get_tree().create_timer(3.0).timeout
 	intro_layer.queue_free()
 	
-	if not first_battle_started:
+	# ✅ ИСПРАВЛЕНО: Проверяем не только флаг, но и player_data
+	if not first_battle_started and not player_data.get("first_battle_completed", false):
 		first_battle_started = true
+		player_data["first_battle_completed"] = true  # ✅ Сохраняем в данные
+		
 		await get_tree().create_timer(1.0).timeout
 		show_message("⚠️ ОБУЧЕНИЕ: Встретился гопник!")
 		await get_tree().create_timer(1.5).timeout
@@ -290,3 +294,53 @@ func start_battle(enemy_type: String = "gopnik"):
 
 func show_districts_menu():
 	districts_menu_manager.show_districts_menu(self)
+
+# ✅ ЗАГРУЗКА ИГРЫ (ИСПРАВЛЕНО)
+func load_game_from_data(save_data: Dictionary):
+	if save_data.is_empty():
+		show_message("❌ Нет данных для загрузки!")
+		return
+	
+	# Восстанавливаем игрока
+	if save_data.has("player"):
+		var player = save_data["player"]
+		player_data["balance"] = player.get("balance", 0)
+		player_data["health"] = player.get("health", 100)
+		player_data["reputation"] = player.get("reputation", 0)
+		player_data["completed_quests"] = player.get("completed_quests", [])
+		player_data["equipment"] = player.get("equipment", {}).duplicate(true)
+		player_data["inventory"] = player.get("inventory", []).duplicate(true)
+		player_data["pockets"] = player.get("pockets", [null, null, null]).duplicate(true)
+		
+		# ✅ ВАЖНО: Восстанавливаем флаг первого боя
+		player_data["first_battle_completed"] = player.get("first_battle_completed", true)
+		
+		if player.has("current_square"):
+			player_data["current_square"] = player["current_square"]
+	
+	# Восстанавливаем банду
+	if save_data.has("gang"):
+		gang_members = save_data["gang"].duplicate(true)
+		
+		# Инициализируем is_active
+		for i in range(gang_members.size()):
+			if not gang_members[i].has("is_active"):
+				gang_members[i]["is_active"] = (i == 0)
+	
+	# ✅ ИСПРАВЛЕНО: Восстанавливаем квесты и районы
+	if save_manager:
+		if save_data.has("quests"):
+			save_manager.restore_quest_data(save_data["quests"])
+		
+		if save_data.has("districts"):
+			save_manager.restore_districts_data(save_data["districts"])
+	
+	update_ui()
+	show_message("✅ Игра загружена!")
+	print("📂 Загружено - первый бой: %s" % player_data["first_battle_completed"])
+
+func get_save_data() -> Dictionary:
+	return {
+		"player_data": player_data,
+		"gang_members": gang_members
+	}

@@ -1,4 +1,4 @@
-# battle_logic_full.gd (ИСПРАВЛЕНО - вся банда атакует)
+# battle_logic_full.gd (ИСПРАВЛЕНО - логи атак игрока/банды)
 extends Node
 
 signal turn_completed()
@@ -81,6 +81,7 @@ func select_bodypart(part_key: String):
 	
 	perform_attack()
 
+# ✅ ИСПРАВЛЕНО: Полное логирование атак
 func perform_attack() -> Dictionary:
 	if not selected_target or selected_bodypart == "":
 		return {"success": false}
@@ -104,6 +105,13 @@ func perform_attack() -> Dictionary:
 	var hit_chance = attacker["accuracy"]
 	if randf() > hit_chance:
 		result["hit"] = false
+		
+		# ✅ ЛОГ: Промах
+		var battle = get_parent()
+		if battle and battle.has_method("add_to_log"):
+			battle.add_to_log("🌫 %s промахнулся!" % attacker["name"])
+		
+		selected_bodypart = ""
 		next_attacker()
 		return result
 	
@@ -118,11 +126,26 @@ func perform_attack() -> Dictionary:
 		result["is_crit"] = true
 		var crit_effects = apply_crit_effects(target, bodypart["crit_effects"])
 		result["effects"] = crit_effects
+		
+		# ✅ ЛОГ: Крит
+		var battle = get_parent()
+		if battle and battle.has_method("add_to_log"):
+			battle.add_to_log("💥 КРИТИЧЕСКИЙ УДАР от %s!" % attacker["name"])
 	
 	# Применение урона
 	var final_damage = max(1, damage - target["defense"])
 	target["hp"] -= final_damage
 	result["damage"] = final_damage
+	
+	# ✅ ЛОГ: Успешная атака
+	var battle = get_parent()
+	if battle and battle.has_method("add_to_log"):
+		battle.add_to_log("⚔️ %s → %s (%s): -%d HP" % [
+			attacker["name"],
+			target["name"],
+			bodypart["name"],
+			final_damage
+		])
 	
 	# Снижение морали
 	target["morale"] = max(10, target["morale"] - randi_range(5, 15))
@@ -130,8 +153,8 @@ func perform_attack() -> Dictionary:
 	# Проверка обморока/смерти
 	check_fighter_status(target)
 	
-	# Следующий атакующий
-	clear_target()
+	# Следующий атакующий (цель НЕ сбрасывается!)
+	selected_bodypart = ""
 	next_attacker()
 	
 	return result
@@ -179,6 +202,10 @@ func check_fighter_status(fighter: Dictionary):
 			fighter["alive"] = false
 			fighter["hp"] = 0
 		
+		# Если выбранная цель умерла - сбрасываем выбор
+		if selected_target == fighter:
+			selected_target = null
+		
 		var team = player_team if (fighter.get("is_player", false) or player_team.has(fighter)) else enemy_team
 		for member in team:
 			if member["alive"]:
@@ -219,12 +246,10 @@ func enemy_turn() -> Array:
 		if not enemy["alive"] or enemy["status_effects"].has("stunned"):
 			continue
 		
-		# Выбор цели
 		var target = get_random_alive_player()
 		if not target:
 			break
 		
-		# Выбор части тела
 		var parts = ["head", "torso", "arms", "legs"]
 		var part_key = parts[randi() % parts.size()]
 		var bodypart = body_parts[part_key]
@@ -239,7 +264,6 @@ func enemy_turn() -> Array:
 			"effects": []
 		}
 		
-		# Атака
 		if randf() > enemy["accuracy"]:
 			action["hit"] = false
 			actions.append(action)
@@ -263,12 +287,10 @@ func enemy_turn() -> Array:
 		
 		actions.append(action)
 	
-	# Проверка окончания боя
 	var battle_result = check_battle_end()
 	if battle_result["ended"]:
 		return actions
 	
-	# Следующий ход
 	turn = "player"
 	current_attacker_index = 0
 	buttons_locked = false
@@ -280,28 +302,23 @@ func enemy_turn() -> Array:
 func next_attacker():
 	current_attacker_index += 1
 	
-	# Пропускаем мертвых/оглушённых
 	while current_attacker_index < player_team.size():
 		var attacker = player_team[current_attacker_index]
 		if attacker["alive"] and not attacker["status_effects"].has("stunned"):
 			break
 		current_attacker_index += 1
 	
-	# ✅ ИСПРАВЛЕНО: Если не главный игрок - автоатака
+	# Если не главный игрок - автоатака
 	if current_attacker_index < player_team.size():
 		var attacker = player_team[current_attacker_index]
 		
-		# ✅ Если это НЕ главный игрок - атакует автоматически с задержкой
 		if not attacker.get("is_main_player", false):
-			# Небольшая задержка перед атакой члена банды
 			await get_tree().create_timer(0.8).timeout
 			auto_attack_for_gang_member(attacker)
 			return
 		else:
-			# Главный игрок - ждём выбора цели
 			battle_state_changed.emit("next_attacker")
 	else:
-		# Конец хода команды
 		var battle_result = check_battle_end()
 		if not battle_result["ended"]:
 			turn = "enemy"
@@ -310,22 +327,26 @@ func next_attacker():
 	
 	turn_completed.emit()
 
-# ✅ НОВАЯ ФУНКЦИЯ: Автоатака для членов банды
+# ✅ ИСПРАВЛЕНО: Автоатака с логами
 func auto_attack_for_gang_member(attacker: Dictionary):
-	# Выбираем случайного врага
-	var target = get_random_alive_enemy()
+	var target = selected_target
+	if not target or not target.get("alive", false):
+		target = get_random_alive_enemy()
+	
 	if not target:
 		next_attacker()
 		return
 	
-	# Случайная часть тела
 	var parts = ["head", "torso", "arms", "legs"]
 	var part_key = parts[randi() % parts.size()]
 	var bodypart = body_parts[part_key]
 	
 	# Проверка попадания
 	if randf() > attacker["accuracy"]:
-		print("🌫 %s промахнулся!" % attacker["name"])
+		# ✅ ЛОГ: Промах члена банды
+		var battle = get_parent()
+		if battle and battle.has_method("add_to_log"):
+			battle.add_to_log("🌫 %s промахнулся!" % attacker["name"])
 		next_attacker()
 		return
 	
@@ -336,18 +357,27 @@ func auto_attack_for_gang_member(attacker: Dictionary):
 	var is_crit = randf() < 0.2
 	if is_crit:
 		damage = int(damage * 1.5)
-		print("💥 КРИТИЧЕСКИЙ УДАР от %s!" % attacker["name"])
+		# ✅ ЛОГ: Крит члена банды
+		var battle = get_parent()
+		if battle and battle.has_method("add_to_log"):
+			battle.add_to_log("💥 КРИТИЧЕСКИЙ УДАР от %s!" % attacker["name"])
 		apply_crit_effects(target, bodypart["crit_effects"])
 	
 	var final_damage = max(1, damage - target["defense"])
 	target["hp"] -= final_damage
 	target["morale"] = max(10, target["morale"] - randi_range(5, 15))
 	
-	print("⚔️ %s → %s (%s): -%d HP" % [attacker["name"], target["name"], bodypart["name"], final_damage])
+	# ✅ ЛОГ: Успешная атака члена банды
+	var battle = get_parent()
+	if battle and battle.has_method("add_to_log"):
+		battle.add_to_log("⚔️ %s → %s (%s): -%d HP" % [
+			attacker["name"],
+			target["name"],
+			bodypart["name"],
+			final_damage
+		])
 	
 	check_fighter_status(target)
-	
-	# Переход к следующему атакующему
 	next_attacker()
 
 # ========== ПРОВЕРКА ОКОНЧАНИЯ БОЯ ==========

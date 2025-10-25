@@ -28,7 +28,17 @@ func show_inventory_for_member(main_node: Node, member_index: int, gang_members:
 		gang_manager.show_gang_menu(main_node, gang_members)
 	)
 
-func show_item_popup(main_node: Node, item_name: String, from_pocket: bool, pocket_idx: int, member_index: int, gang_members: Array, player_data: Dictionary):
+func show_item_popup(main_node, item_name, from_pocket, pocket_idx, member_index, gang_members, player_data):
+	# ... создание меню ...
+	
+	var actions = []
+	
+	if from_pocket:
+		# ✅ Из кармана - ТОЛЬКО использовать
+		actions = ["Использовать", "Выбросить"]
+	else:
+		# Из инвентаря - можно одеть/в карман
+		actions = ["Экипировать", "В карман", "Использовать", "Выбросить"]
 	var popup_script = load("res://scripts/ui/item_popup.gd")
 	var popup = popup_script.new()
 	popup.name = "ItemPopup"

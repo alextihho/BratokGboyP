@@ -1,4 +1,4 @@
-# menu_manager.gd (ИСПРАВЛЕН - LAYER 200 ДЛЯ ВСЕХ МЕНЮ)
+# menu_manager.gd (ИСПРАВЛЕНО - квесты работают!)
 extends Node
 
 var gang_manager
@@ -31,19 +31,22 @@ func show_districts_menu(main_node: Node):
 		return
 	main_node.show_districts_menu()
 
+# ✅ ИСПРАВЛЕНО: Убрана заглушка!
 func show_quests_menu(main_node: Node):
+	if not quest_system:
+		quest_system = get_node_or_null("/root/QuestSystem")
+	
 	if quest_system:
 		quest_system.show_quests_menu(main_node)
 	else:
-		main_node.show_message("Квесты - в разработке")
+		main_node.show_message("❌ Система квестов не найдена!\nПроверь autoload QuestSystem")
 
 func show_main_menu(main_node: Node):
 	var menu_layer = CanvasLayer.new()
 	menu_layer.name = "MainMenuLayer"
-	menu_layer.layer = 200  # ✅ КРИТИЧНО! ВЫШЕ сетки (5) и UI (50)
+	menu_layer.layer = 200
 	main_node.add_child(menu_layer)
 	
-	# ✅ Полупрозрачный overlay (блокирует клики)
 	var overlay = ColorRect.new()
 	overlay.size = Vector2(720, 1280)
 	overlay.position = Vector2(0, 0)
@@ -195,10 +198,9 @@ func show_stats_window(main_node: Node):
 	
 	var stats_popup = CanvasLayer.new()
 	stats_popup.name = "StatsPopup"
-	stats_popup.layer = 200  # ✅ ВЫШЕ сетки
+	stats_popup.layer = 200
 	main_node.add_child(stats_popup)
 	
-	# ✅ Overlay
 	var overlay = ColorRect.new()
 	overlay.size = Vector2(720, 1280)
 	overlay.position = Vector2(0, 0)

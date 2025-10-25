@@ -1,4 +1,4 @@
-# battle.gd - АДАПТИРОВАН ПОД ВАШ battle_logic_full.gd
+# battle.gd - ИСПРАВЛЕНО (активные члены банды + имена над аватарками)
 extends CanvasLayer
 
 signal battle_ended(victory: bool)
@@ -74,14 +74,21 @@ func setup(p_player_data: Dictionary, enemy_type: String = "gopnik", first_battl
 	}
 	player_team.append(player)
 	
-	# Члены банды
+	# ✅ ИСПРАВЛЕНО: Берем ТОЛЬКО активных членов банды
 	if gang_members.size() > 0:
-		add_to_log("👥 Ваша банда присоединилась к бою!")
+		var active_count = 0
 		
 		for i in range(gang_members.size()):
 			var member = gang_members[i]
+			
+			# ✅ Пропускаем главного игрока (индекс 0) и неактивных
+			if i == 0 or not member.get("is_active", false):
+				continue
+			
+			active_count += 1
+			
 			var gang_fighter = {
-				"name": member.get("name", "Боец " + str(i + 1)),
+				"name": member.get("name", "Боец " + str(active_count)),
 				"hp": member.get("hp", 80),
 				"max_hp": member.get("max_hp", 80),
 				"damage": member.get("damage", 10),
@@ -94,11 +101,17 @@ func setup(p_player_data: Dictionary, enemy_type: String = "gopnik", first_battl
 				"weapon": member.get("weapon", "Кулаки"),
 				"avatar": member.get("avatar", "res://assets/avatars/gang_member.png"),
 				"is_gang_member": true,
+				"gang_member_index": i,  # ✅ ВАЖНО: Сохраняем индекс для обновления HP
 				"inventory": member.get("inventory", []),
 				"equipment": member.get("equipment", {})
 			}
 			player_team.append(gang_fighter)
 			add_to_log("➕ %s присоединился к бою" % gang_fighter["name"])
+		
+		if active_count > 0:
+			add_to_log("👥 Ваша банда: %d активных бойцов" % active_count)
+		else:
+			add_to_log("ℹ️ Нет активных членов банды")
 	else:
 		add_to_log("ℹ️ Вы один против всех...")
 
@@ -152,6 +165,15 @@ func get_enemy_count(enemy_type: String, player_count: int) -> int:
 	return base_count
 
 func create_ui():
+	# ✅ ФОНОВЫЙ OVERLAY НА ВЕСЬ ЭКРАН
+	var fullscreen_overlay = ColorRect.new()
+	fullscreen_overlay.size = Vector2(720, 1280)  # Весь экран
+	fullscreen_overlay.position = Vector2(0, 0)
+	fullscreen_overlay.color = Color(0, 0, 0, 0.95)  # Почти черный
+	fullscreen_overlay.mouse_filter = Control.MOUSE_FILTER_STOP  # ✅ БЛОКИРУЕТ ВСЕ КЛИКИ
+	fullscreen_overlay.z_index = -1  # За остальными элементами
+	fullscreen_overlay.name = "FullscreenOverlay"
+	add_child(fullscreen_overlay)
 	# Фон
 	var bg = ColorRect.new()
 	bg.size = Vector2(700, 1100)
@@ -182,17 +204,17 @@ func create_ui():
 	
 	# === ЛОГ БОЯ ===
 	var log_scroll = ScrollContainer.new()
-	log_scroll.custom_minimum_size = Vector2(680, 300)
-	log_scroll.position = Vector2(20, 500)
+	log_scroll.custom_minimum_size = Vector2(680, 250)  # ✅ Чуть меньше
+	log_scroll.position = Vector2(20, 780)  # ✅ ОПУСТИЛИ ВНИЗ (красная область)
 	log_scroll.name = "LogScroll"
 	log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(log_scroll)
 	
 	var log_bg = ColorRect.new()
-	log_bg.size = Vector2(680, 300)
-	log_bg.position = Vector2(20, 500)
-	log_bg.color = Color(0.03, 0.03, 0.03, 1.0)
+	log_bg.size = Vector2(680, 250)
+	log_bg.position = Vector2(20, 780)  # ✅ ОПУСТИЛИ
+	log_bg.color = Color(0.1, 0.1, 0.1, 0.9)
 	log_bg.z_index = -1
 	add_child(log_bg)
 	
@@ -204,7 +226,7 @@ func create_ui():
 	# === ИНФОРМАЦИЯ О ХОДЕ ===
 	var turn_info = Label.new()
 	turn_info.text = "Ваш ход: Выберите цель"
-	turn_info.position = Vector2(200, 820)
+	turn_info.position = Vector2(200, 1050)
 	turn_info.add_theme_font_size_override("font_size", 20)
 	turn_info.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
 	turn_info.name = "TurnInfo"
@@ -216,7 +238,6 @@ func create_ui():
 	update_turn_info()
 	update_teams_info()
 
-# ✅ АДАПТИРОВАННЫЕ ФУНКЦИИ ДЛЯ ВАШЕГО КОДА
 func get_alive_player_count() -> int:
 	return battle_logic.count_alive(battle_logic.player_team)
 
@@ -278,7 +299,6 @@ func on_attack_button():
 	if battle_logic.is_buttons_locked():
 		return
 	
-	# ✅ ИСПРАВЛЕНО: Проверяем, что цель выбрана
 	if not battle_logic.selected_target:
 		add_to_log("⚠️ Сначала выберите цель!")
 		return
@@ -330,11 +350,6 @@ func on_bodypart_selected(part_key: String):
 		menu.queue_free()
 	
 	battle_logic.select_bodypart(part_key)
-	
-	# ✅ ВАЖНО: НЕ очищаем selected_target - цель остаётся выбранной!
-	# battle_logic.clear_target()  <-- УДАЛИТЕ ЭТУ СТРОКУ ЕСЛИ ОНА ЕСТЬ
-	
-	# Автоматически переходит к следующему атакующему
 
 func on_defend():
 	if battle_logic.turn != "player" or battle_logic.is_buttons_locked():
@@ -428,9 +443,9 @@ func win_battle():
 	
 	add_to_log("💰 +%d руб., +%d репутации" % [total_reward, 5 + battle_logic.enemy_team.size()])
 	
-	await get_tree().create_timer(3.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	battle_ended.emit(true)
-	queue_free()
+	queue_free()  # ✅ Автозакрытие
 
 func lose_battle():
 	add_to_log("💀 ПОРАЖЕНИЕ!")
@@ -447,9 +462,9 @@ func lose_battle():
 	else:
 		add_to_log("🏃 Вы чудом спаслись...")
 	
-	await get_tree().create_timer(3.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	battle_ended.emit(false)
-	queue_free()
+	queue_free()  # ✅ Автозакрытие
 
 # ========== ОБРАБОТКА СИГНАЛОВ ==========
 func _on_turn_completed():
@@ -465,7 +480,6 @@ func _on_battle_state_changed(new_state: String):
 			lock_buttons(false)
 			update_turn_info()
 		"selecting_bodypart":
-			# Ожидаем выбора части тела
 			pass
 		"next_attacker":
 			update_turn_info()
@@ -479,7 +493,6 @@ func _on_avatar_clicked(character_data: Dictionary, is_player_team: bool):
 	show_character_info(character_data, is_player_team)
 
 func show_character_info(character_data: Dictionary, is_player_team: bool):
-	# Создаем окно информации о персонаже
 	var info_window = CanvasLayer.new()
 	info_window.layer = 300
 	add_child(info_window)
@@ -490,7 +503,6 @@ func show_character_info(character_data: Dictionary, is_player_team: bool):
 	bg.color = Color(0.1, 0.1, 0.1, 0.95)
 	info_window.add_child(bg)
 	
-	# Заголовок
 	var title = Label.new()
 	title.text = "📊 Информация: " + character_data["name"]
 	title.position = Vector2(200, 220)
@@ -498,7 +510,6 @@ func show_character_info(character_data: Dictionary, is_player_team: bool):
 	title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
 	info_window.add_child(title)
 	
-	# Статистика
 	var stats_text = "❤️ HP: %d/%d\n" % [character_data["hp"], character_data.get("max_hp", 100)]
 	stats_text += "⚔️ Урон: %d\n" % character_data["damage"]
 	stats_text += "🛡️ Защита: %d\n" % character_data["defense"]
@@ -506,7 +517,6 @@ func show_character_info(character_data: Dictionary, is_player_team: bool):
 	stats_text += "💪 Мораль: %d\n" % character_data["morale"]
 	stats_text += "🔫 Оружие: %s\n" % character_data.get("weapon", "Кулаки")
 	
-	# Статус-эффекты
 	var status_text = battle_logic.get_status_text(character_data)
 	if status_text != "":
 		stats_text += "📋 Статусы: %s\n" % status_text
@@ -517,7 +527,6 @@ func show_character_info(character_data: Dictionary, is_player_team: bool):
 	stats_label.add_theme_font_size_override("font_size", 18)
 	info_window.add_child(stats_label)
 	
-	# Инвентарь (только просмотр)
 	if character_data.has("inventory") and character_data["inventory"].size() > 0:
 		var inv_title = Label.new()
 		inv_title.text = "🎒 Инвентарь:"
@@ -534,7 +543,6 @@ func show_character_info(character_data: Dictionary, is_player_team: bool):
 			info_window.add_child(item_label)
 			y_offset += 25
 	
-	# Кнопка закрытия
 	var close_btn = Button.new()
 	close_btn.custom_minimum_size = Vector2(200, 50)
 	close_btn.position = Vector2(200, 700)
