@@ -256,6 +256,7 @@ func create_battle_buttons():
 	defend_btn.add_theme_stylebox_override("normal", style_defend)
 	defend_btn.add_theme_font_size_override("font_size", 24)
 	defend_btn.pressed.connect(func(): on_defend())
+	
 	add_child(defend_btn)
 	
 	# Кнопка "Бежать"
@@ -277,7 +278,7 @@ func on_attack_button():
 	if battle_logic.is_buttons_locked():
 		return
 	
-	# Проверяем, что цель выбрана
+	# ✅ ИСПРАВЛЕНО: Проверяем, что цель выбрана
 	if not battle_logic.selected_target:
 		add_to_log("⚠️ Сначала выберите цель!")
 		return
@@ -330,7 +331,9 @@ func on_bodypart_selected(part_key: String):
 	
 	battle_logic.select_bodypart(part_key)
 	
-	# Результат уже обработан в battle_logic
+	# ✅ ВАЖНО: НЕ очищаем selected_target - цель остаётся выбранной!
+	# battle_logic.clear_target()  <-- УДАЛИТЕ ЭТУ СТРОКУ ЕСЛИ ОНА ЕСТЬ
+	
 	# Автоматически переходит к следующему атакующему
 
 func on_defend():
