@@ -12,39 +12,51 @@ func _ready():
 func handle_building_action(location: String, action_index: int, player_data: Dictionary, main_node: Node):
 	print("🏢 Действие в " + location + ", индекс: " + str(action_index))
 	
+	# ✅ ДОБАВЛЕНО: Получаем системы времени и полиции
+	var time_system = get_node_or_null("/root/TimeSystem")
+	var police_system = get_node_or_null("/root/PoliceSystem")
+	
 	match location:
 		"ЛАРЁК":
-			handle_kiosk_action(action_index, player_data, main_node)
+			handle_kiosk_action(action_index, player_data, main_node, time_system, police_system)
 		"ГАРАЖ":
-			handle_garage_action(action_index, player_data, main_node)
+			handle_garage_action(action_index, player_data, main_node, time_system, police_system)
 		"РЫНОК":
-			handle_market_action(action_index, player_data, main_node)
+			handle_market_action(action_index, player_data, main_node, time_system, police_system)
 		"ПОРТ":
-			handle_port_action(action_index, player_data, main_node)
+			handle_port_action(action_index, player_data, main_node, time_system, police_system)
 		"ОБЩЕЖИТИЕ":
-			handle_dorm_action(action_index, player_data, main_node)
+			handle_dorm_action(action_index, player_data, main_node, time_system, police_system)
 		"УЛИЦА":
-			handle_street_action(action_index, player_data, main_node)
+			handle_street_action(action_index, player_data, main_node, time_system, police_system)
 		"ВОКЗАЛ":
-			handle_station_action(action_index, player_data, main_node)
+			handle_station_action(action_index, player_data, main_node, time_system, police_system)
 	
 	building_action_completed.emit(location, action_index)
 
 # ЛАРЁК
-func handle_kiosk_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_kiosk_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Купить пиво (30р)
 			buy_item("Пиво", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(5)  # ✅ Быстрая покупка
 		1: # Купить сигареты (15р)
 			buy_item("Сигареты", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(3)
 		2: # Купить кепку (50р)
 			buy_item("Кепка", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(10)
 
 # ГАРАЖ
-func handle_garage_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_garage_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Купить биту (100р)
 			buy_item("Бита", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(10)
 		1: # Помочь механику
 			if "Пиво" in player_data["inventory"]:
 				player_data["inventory"].erase("Пиво")
@@ -58,6 +70,10 @@ func handle_garage_action(action_index: int, player_data: Dictionary, main_node:
 				if stats_system:
 					stats_system.add_stat_xp("STR", 10)
 					stats_system.add_stat_xp("DRV", 5)
+				
+				# ✅ Работа в гараже занимает время
+				if time_system:
+					time_system.add_minutes(45)
 			else:
 				main_node.show_message("Механик: 'Принеси пивка!'")
 		2: # Взять инструменты
@@ -75,15 +91,23 @@ func handle_garage_action(action_index: int, player_data: Dictionary, main_node:
 				else:
 					stats_system.on_lockpick_attempt(false)
 					main_node.show_message("🔒 Не удалось взломать замок")
+			
+			# ✅ Взлом занимает время
+			if time_system:
+				time_system.add_minutes(15)
 
 # РЫНОК
-func handle_market_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_market_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Купить кожанку (200р)
 			buy_item("Кожанка", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(15)
 		1: # Продать вещь
 			if player_data["inventory"].size() > 0:
 				show_sell_menu(player_data, main_node)
+				if time_system:
+					time_system.add_minutes(20)
 			else:
 				main_node.show_message("Рюкзак пуст, нечего продавать")
 		2: # Узнать новости
@@ -109,15 +133,26 @@ func handle_market_action(action_index: int, player_data: Dictionary, main_node:
 					main_node.show_message("🥷 Незаметно украли: " + stolen)
 				else:
 					player_stats.on_theft_attempt(true, 0)
+					# ✅ ДОБАВЛЕНО: Повышаем УА если заметили
+					if police_system:
+						police_system.on_theft(25)
 					main_node.show_message("⚠️ Чуть не заметили при попытке воровства!")
+			
+			# ✅ Время на новости
+			if time_system:
+				time_system.add_minutes(10)
 
 # ПОРТ
-func handle_port_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_port_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Купить ПМ (500р)
 			buy_item("ПМ", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(20)
 		1: # Купить отмычку (100р)
 			buy_item("Отмычка", player_data, main_node)
+			if time_system:
+				time_system.add_minutes(15)
 		2: # Уйти
 			main_node.close_location_menu()
 			
@@ -134,15 +169,20 @@ func handle_port_action(action_index: int, player_data: Dictionary, main_node: N
 				else:
 					stats_system.on_persuasion_attempt(false)
 					main_node.show_message("💬 Не удалось договориться с контрабандистами")
+			
+			if time_system:
+				time_system.add_minutes(5)
 
 # ОБЩЕЖИТИЕ
-func handle_dorm_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_dorm_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Отдохнуть
 			var heal_amount = 30
 			player_data["health"] = min(100, player_data["health"] + heal_amount)
 			main_node.show_message("Хорошо отдохнули (+30 HP)")
 			main_node.update_ui()
+			if time_system:
+				time_system.add_minutes(120)  # 2 часа отдыха
 		1: # Поговорить с другом
 			var dialogues = [
 				"Друг: 'Как дела, братан?'",
@@ -151,12 +191,16 @@ func handle_dorm_action(action_index: int, player_data: Dictionary, main_node: N
 				"Друг: 'Может, пива принесёшь?'"
 			]
 			main_node.show_message(dialogues[randi() % dialogues.size()])
+			if time_system:
+				time_system.add_minutes(30)
 		2: # Взять вещи
 			player_data["inventory"].append("Продукты")
 			main_node.show_message("Взяли продукты из общаги")
+			if time_system:
+				time_system.add_minutes(5)
 
 # УЛИЦА
-func handle_street_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_street_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Прогуляться
 			var events = [
@@ -170,13 +214,19 @@ func handle_street_action(action_index: int, player_data: Dictionary, main_node:
 				player_data["balance"] += 10
 				main_node.update_ui()
 			main_node.show_message(events[event])
+			if time_system:
+				time_system.add_minutes(20)
 		1: # Встретить знакомого
 			main_node.show_message("Кент: 'Привет! Как жизнь?'")
+			if time_system:
+				time_system.add_minutes(15)
 		2: # Посмотреть вокруг
 			main_node.show_message("Вокруг много людей, шумный город")
+			if time_system:
+				time_system.add_minutes(5)
 
 # ВОКЗАЛ
-func handle_station_action(action_index: int, player_data: Dictionary, main_node: Node):
+func handle_station_action(action_index: int, player_data: Dictionary, main_node: Node, time_system, police_system):
 	match action_index:
 		0: # Купить билет
 			if player_data["balance"] >= 50:
@@ -185,6 +235,8 @@ func handle_station_action(action_index: int, player_data: Dictionary, main_node
 				main_node.update_ui()
 			else:
 				main_node.show_message("Не хватает денег! Нужно 50 руб.")
+			if time_system:
+				time_system.add_minutes(10)
 		1: # Встретить контакт
 			var contacts = [
 				"Контакт не появился...",
@@ -192,8 +244,12 @@ func handle_station_action(action_index: int, player_data: Dictionary, main_node
 				"Контакт передал записку"
 			]
 			main_node.show_message(contacts[randi() % contacts.size()])
+			if time_system:
+				time_system.add_minutes(30)
 		2: # Осмотреться
 			main_node.show_message("Много людей спешат на поезда")
+			if time_system:
+				time_system.add_minutes(5)
 
 # Покупка предмета
 func buy_item(item_name: String, player_data: Dictionary, main_node: Node):

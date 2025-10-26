@@ -350,6 +350,10 @@ func on_bodypart_selected(part_key: String):
 		menu.queue_free()
 	
 	battle_logic.select_bodypart(part_key)
+	
+	# ✅ ДОБАВЛЕНО: Прокачка силы при атаке
+	if player_stats:
+		player_stats.add_stat_xp("STR", 5)  # +5 опыта силы за атаку
 
 func on_defend():
 	if battle_logic.turn != "player" or battle_logic.is_buttons_locked():
@@ -358,6 +362,10 @@ func on_defend():
 	battle_logic.defend()
 	add_to_log("🛡️ Вы приняли защитную стойку!")
 	lock_buttons(true)
+	
+	# ✅ ДОБАВЛЕНО: Прокачка ловкости при защите
+	if player_stats:
+		player_stats.add_stat_xp("AGI", 5)  # +5 опыта ловкости за защиту
 	
 	await get_tree().create_timer(1.5).timeout
 	execute_enemy_turn()
@@ -370,8 +378,12 @@ func on_run():
 	
 	if result["success"]:
 		add_to_log("🏃 Успешное отступление!")
-		await get_tree().create_timer(1.5).timeout
 		battle_ended.emit(false)
+		
+		# ✅ РАДИКАЛЬНОЕ РЕШЕНИЕ: Закрываем окно через 2 секунды
+		print("⏰ Ждём 2 секунды перед закрытием окна боя...")
+		await get_tree().create_timer(2.0).timeout
+		print("⚔️ ЗАКРЫВАЕМ ОКНО БОЯ через queue_free()!")
 		queue_free()
 	else:
 		add_to_log("🏃 Не удалось сбежать!")
@@ -443,9 +455,14 @@ func win_battle():
 	
 	add_to_log("💰 +%d руб., +%d репутации" % [total_reward, 5 + battle_logic.enemy_team.size()])
 	
-	await get_tree().create_timer(2.0).timeout
+	# Испускаем сигнал СРАЗУ
 	battle_ended.emit(true)
-	queue_free()  # ✅ Автозакрытие
+	
+	# ✅ РАДИКАЛЬНОЕ РЕШЕНИЕ: Закрываем окно ПРЯМО ЗДЕСЬ через 2 секунды
+	print("⏰ Ждём 2 секунды перед закрытием окна боя...")
+	await get_tree().create_timer(2.0).timeout
+	print("⚔️ ЗАКРЫВАЕМ ОКНО БОЯ через queue_free()!")
+	queue_free()
 
 func lose_battle():
 	add_to_log("💀 ПОРАЖЕНИЕ!")
@@ -462,9 +479,14 @@ func lose_battle():
 	else:
 		add_to_log("🏃 Вы чудом спаслись...")
 	
-	await get_tree().create_timer(2.0).timeout
+	# Испускаем сигнал СРАЗУ
 	battle_ended.emit(false)
-	queue_free()  # ✅ Автозакрытие
+	
+	# ✅ РАДИКАЛЬНОЕ РЕШЕНИЕ: Закрываем окно ПРЯМО ЗДЕСЬ через 2 секунды
+	print("⏰ Ждём 2 секунды перед закрытием окна боя...")
+	await get_tree().create_timer(2.0).timeout
+	print("⚔️ ЗАКРЫВАЕМ ОКНО БОЯ через queue_free()!")
+	queue_free()
 
 # ========== ОБРАБОТКА СИГНАЛОВ ==========
 func _on_turn_completed():

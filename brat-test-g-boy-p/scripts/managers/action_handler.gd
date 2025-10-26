@@ -48,6 +48,9 @@ func handle_location_action(location: String, action_index: int, main_node: Node
 func handle_hospital_action(action_index: int, main_node: Node):
 	match action_index:
 		0:  # Лечиться
+			# ✅ Закрываем меню выбора действий ПЕРЕД открытием UI лечения
+			main_node.close_location_menu()
+			
 			if hospital_system:
 				hospital_system.show_hospital_menu(main_node, player_data)
 			else:

@@ -52,19 +52,27 @@ func _ready():
 # Показать меню больницы
 func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	var hospital_menu = CanvasLayer.new()
-	hospital_menu.layer = 25  # ✅ Выше сетки (1)
+	hospital_menu.layer = 100  # ✅ Поверх всего
 	hospital_menu.name = "HospitalMenu"
 	main_node.add_child(hospital_menu)
 	
+	# ✅ Overlay на весь экран - блокирует клики по другим элементам
+	var overlay = ColorRect.new()
+	overlay.size = Vector2(720, 1280)
+	overlay.position = Vector2(0, 0)
+	overlay.color = Color(0, 0, 0, 0.8)  # Полупрозрачный черный
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP  # Блокирует клики
+	hospital_menu.add_child(overlay)
+	
 	var bg = ColorRect.new()
 	bg.size = Vector2(700, 1100)
-	bg.position = Vector2(10, 140)
+	bg.position = Vector2(10, 90)  # ✅ Выше, чтобы не перекрывалось нижним меню
 	bg.color = Color(0.05, 0.05, 0.1, 0.95)
 	hospital_menu.add_child(bg)
 	
 	var title = Label.new()
 	title.text = "🏥 БОЛЬНИЦА"
-	title.position = Vector2(270, 160)
+	title.position = Vector2(270, 110)  # ✅ Скорректировано
 	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0, 1.0))
 	hospital_menu.add_child(title)
@@ -76,7 +84,7 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	
 	var health_info = Label.new()
 	health_info.text = "Ваше здоровье: " + str(current_hp) + "/" + str(max_hp) + " (" + str(int(hp_percent)) + "%)"
-	health_info.position = Vector2(200, 220)
+	health_info.position = Vector2(200, 170)  # ✅ Скорректировано
 	health_info.add_theme_font_size_override("font_size", 18)
 	
 	var health_color = Color.GREEN
@@ -91,19 +99,19 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	# Прогресс-бар здоровья
 	var hp_bar_bg = ColorRect.new()
 	hp_bar_bg.size = Vector2(660, 30)
-	hp_bar_bg.position = Vector2(30, 260)
+	hp_bar_bg.position = Vector2(30, 210)  # ✅ Скорректировано
 	hp_bar_bg.color = Color(0.2, 0.2, 0.2, 1.0)
 	hospital_menu.add_child(hp_bar_bg)
 	
 	var hp_bar_fill = ColorRect.new()
 	hp_bar_fill.size = Vector2(660 * (hp_percent / 100.0), 30)
-	hp_bar_fill.position = Vector2(30, 260)
+	hp_bar_fill.position = Vector2(30, 210)  # ✅ Скорректировано
 	hp_bar_fill.color = health_color
 	hospital_menu.add_child(hp_bar_fill)
 	
 	var hp_bar_text = Label.new()
 	hp_bar_text.text = str(current_hp) + " HP"
-	hp_bar_text.position = Vector2(330, 265)
+	hp_bar_text.position = Vector2(330, 215)  # ✅ Скорректировано
 	hp_bar_text.add_theme_font_size_override("font_size", 16)
 	hp_bar_text.add_theme_color_override("font_color", Color.BLACK)
 	hospital_menu.add_child(hp_bar_text)
@@ -112,13 +120,13 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	if current_treatment != null:
 		var treating_label = Label.new()
 		treating_label.text = "⏳ Вы лечитесь..."
-		treating_label.position = Vector2(270, 310)
+		treating_label.position = Vector2(270, 260)  # ✅ Скорректировано
 		treating_label.add_theme_font_size_override("font_size", 18)
 		treating_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
 		hospital_menu.add_child(treating_label)
 	
 	# Список видов лечения
-	var y_pos = 350
+	var y_pos = 300  # ✅ Скорректировано
 	
 	# Подсказка
 	var hint = Label.new()
@@ -209,7 +217,7 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 		var treat_id = treatment_key
 		treat_btn.pressed.connect(func():
 			start_treatment(treat_id, player_data, main_node)
-			hospital_menu.queue_free()
+			# ✅ НЕ закрываем меню - пользователь может лечиться ещё
 		)
 		hospital_menu.add_child(treat_btn)
 		
@@ -251,7 +259,9 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 			var item_to_use = item_name
 			item_btn.pressed.connect(func():
 				use_healing_item(item_to_use, player_data, main_node)
+				# ✅ Обновляем меню вместо закрытия
 				hospital_menu.queue_free()
+				show_hospital_menu(main_node, player_data)
 			)
 			hospital_menu.add_child(item_btn)
 			y_pos += 55
@@ -266,7 +276,7 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	# Кнопка закрытия
 	var close_btn = Button.new()
 	close_btn.custom_minimum_size = Vector2(680, 50)
-	close_btn.position = Vector2(20, 1070)
+	close_btn.position = Vector2(20, 1100)  # ✅ Выше нижнего меню (которое на 1180)
 	close_btn.text = "ЗАКРЫТЬ"
 	
 	var style_close = StyleBoxFlat.new()
@@ -278,7 +288,11 @@ func show_hospital_menu(main_node: Node, player_data: Dictionary):
 	close_btn.add_theme_stylebox_override("hover", style_close_hover)
 	
 	close_btn.add_theme_font_size_override("font_size", 20)
-	close_btn.pressed.connect(func(): hospital_menu.queue_free())
+	close_btn.pressed.connect(func(): 
+		hospital_menu.queue_free()
+		# ✅ Возвращаем меню выбора действий
+		main_node.show_location_menu("БОЛЬНИЦА")
+	)
 	
 	hospital_menu.add_child(close_btn)
 
@@ -321,6 +335,13 @@ func start_treatment(treatment_key: String, player_data: Dictionary, main_node: 
 	treatment_timer.timeout.connect(func():
 		complete_treatment(treatment_key, player_data, main_node)
 		treatment_timer.queue_free()
+		
+		# ✅ ДОБАВЛЕНО: Обновляем меню больницы после завершения лечения
+		await main_node.get_tree().create_timer(3.5).timeout  # Ждем окончания анимации результата
+		var hospital_menu = main_node.get_node_or_null("HospitalMenu")
+		if hospital_menu:
+			hospital_menu.queue_free()
+			show_hospital_menu(main_node, player_data)
 	)
 	treatment_timer.start()
 	
@@ -330,6 +351,7 @@ func start_treatment(treatment_key: String, player_data: Dictionary, main_node: 
 func show_treatment_progress(treatment: Dictionary, player_data: Dictionary, main_node: Node):
 	var progress_layer = CanvasLayer.new()
 	progress_layer.name = "TreatmentProgressLayer"
+	progress_layer.layer = 150  # ✅ Поверх меню больницы (layer 100)
 	main_node.add_child(progress_layer)
 	
 	var bg = ColorRect.new()
@@ -419,6 +441,7 @@ func complete_treatment(treatment_key: String, player_data: Dictionary, main_nod
 func show_treatment_result(treatment: Dictionary, restored: int, main_node: Node):
 	var result_layer = CanvasLayer.new()
 	result_layer.name = "TreatmentResultLayer"
+	result_layer.layer = 150  # ✅ Поверх меню больницы
 	main_node.add_child(result_layer)
 	
 	var bg = ColorRect.new()

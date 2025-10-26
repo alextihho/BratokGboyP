@@ -112,10 +112,15 @@ func get_quest_data() -> Dictionary:
 	if not quest_system:
 		return {}
 	
+	var stats_data = {}
+	# ✅ Правильная проверка для GDScript - используем get() с default значением
+	if "player_stats_data" in quest_system:
+		stats_data = quest_system.player_stats_data.duplicate(true)
+	
 	return {
 		"active_quests": quest_system.active_quests.duplicate(true),
 		"completed_quests": quest_system.completed_quests.duplicate(true),
-		"stats": quest_system.player_stats_data.duplicate(true)
+		"stats": stats_data
 	}
 
 func get_districts_data() -> Dictionary:
@@ -162,7 +167,10 @@ func restore_quest_data(data: Dictionary):
 	
 	quest_system.active_quests = data.get("active_quests", []).duplicate(true)
 	quest_system.completed_quests = data.get("completed_quests", []).duplicate(true)
-	quest_system.player_stats_data = data.get("stats", {}).duplicate(true)
+	
+	# ✅ Правильная проверка для GDScript
+	if "player_stats_data" in quest_system:
+		quest_system.player_stats_data = data.get("stats", {}).duplicate(true)
 	
 	print("   📜 Квестов: %d активных, %d выполнено" % [
 		quest_system.active_quests.size(),

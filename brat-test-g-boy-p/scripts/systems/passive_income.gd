@@ -14,7 +14,7 @@ var days_passed: int = 0
 
 func _ready():
 	districts_system = get_node_or_null("/root/DistrictsSystem")
-	game_time = get_node_or_null("/root/GameTime")
+	game_time = get_node_or_null("/root/TimeSystem")  # ✅ ИСПРАВЛЕНО: было /root/GameTime
 	
 	setup_income_timer()
 	print("💰 Система пассивного дохода загружена")
@@ -43,9 +43,9 @@ func _on_income_collection():
 		
 		income_collected.emit(total_income)
 		
-		# Продвигаем игровую дату
+		# ✅ ИСПРАВЛЕНО: Продвигаем игровую дату (1 день = 1440 минут)
 		if game_time:
-			game_time.advance_day()
+			game_time.add_minutes(1440)  # 24 часа * 60 минут
 			day_passed.emit(days_passed)
 
 func collect_income(player_data: Dictionary) -> int:

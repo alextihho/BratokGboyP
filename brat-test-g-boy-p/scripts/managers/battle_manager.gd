@@ -104,6 +104,8 @@ func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battl
 	battle.setup(main_node.player_data, enemy_type, is_first_battle, gang_members)
 	
 	battle.battle_ended.connect(func(victory):
+		print("🔔 СИГНАЛ battle_ended получен! Victory:", victory)
+		
 		# ✅ ИСПРАВЛЕНО: Сохраняем HP главного игрока после боя
 		if battle.battle_logic and battle.battle_logic.player_team.size() > 0:
 			var main_player = battle.battle_logic.player_team[0]  # Главный игрок всегда первый
@@ -135,6 +137,31 @@ func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battl
 			main_node.show_message("💀 Поражение...")
 		
 		main_node.update_ui()
+		
+		print("⏰ Создаём таймер для закрытия боя...")
+		
+		# ✅ ИСПРАВЛЕНО v2: Захватываем battle в замыкание
+		var battle_to_close = battle
+		var close_timer = Timer.new()
+		close_timer.wait_time = 2.0
+		close_timer.one_shot = true
+		main_node.add_child(close_timer)
+		
+		print("⏰ Таймер создан, подключаем timeout...")
+		
+		close_timer.timeout.connect(func():
+			print("⏰ TIMEOUT! Закрываем окно боя...")
+			if battle_to_close and is_instance_valid(battle_to_close):
+				battle_to_close.queue_free()
+				print("⚔️ Окно боя закрыто через queue_free()")
+			else:
+				print("❌ battle_to_close не валиден!")
+			close_timer.queue_free()
+		)
+		
+		print("⏰ Запускаем таймер...")
+		close_timer.start()
+		print("⏰ Таймер запущен!")
 	)
 func apply_gang_experience(main_node, battle_logic, victory: bool):
 	"""

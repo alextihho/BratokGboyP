@@ -316,14 +316,24 @@ func handle_collect_tribute(main_node, district_name: String, actions_menu):
 	
 	actions_menu.queue_free()
 
-func handle_increase_influence(main_node, district_name: String, actions_menu):
+func handle_increase_influence(main_node, district_name, actions_menu):
+	# ✅ Проверяем тип district_name
+	var name_str = ""
+	if district_name is String:
+		name_str = district_name
+	elif district_name is Dictionary:
+		name_str = district_name.get("name", "")
+	else:
+		name_str = str(district_name)
+	
 	if main_node.player_data["balance"] < 50:
 		main_node.show_message("❌ Нужно 50 рублей!")
 		return
 	
 	main_node.player_data["balance"] -= 50
-	districts_system.modify_influence(district_name, "Игрок", 10)
-	main_node.show_message("📈 Влияние в %s увеличено на 10%%!" % district_name)
+	# ✅ ИСПРАВЛЕНО: Используем add_influence вместо modify_influence
+	districts_system.add_influence(name_str, "Игрок", 10)
+	main_node.show_message("📈 Влияние в %s увеличено на 10%%!" % name_str)
 	main_node.update_ui()
 	
 	actions_menu.queue_free()
