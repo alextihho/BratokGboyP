@@ -32,9 +32,6 @@ SimpleJobs="*res://scripts/systems/simple_jobs.gd"
 HospitalSystem="*res://scripts/systems/hospital_system.gd"
 TimeSystem="*res://scripts/systems/time_system.gd"
 PoliceSystem="*res://scripts/systems/police_system.gd"
-BarSystem="*res://scripts/systems/bar_system.gd"
-CarSystem="*res://scripts/systems/car_system.gd"
-ActionHandler="*res://scripts/managers/action_handler.gd"
 
 [display]
 
