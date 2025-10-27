@@ -1,15 +1,56 @@
-# battle_manager.gd (v2.1 - ИСПРАВЛЕНО)
+# battle_manager.gd (v2.3 - ИСПРАВЛЕНО: удалён дублирующий таймер закрытия UI)
 extends Node
 
 var quest_system
 var districts_system
 
+# Шаблоны для наград (из enemy_templates)
+var enemy_reward_templates = {
+	"drunkard": {"money": 20, "reputation": 5},
+	"gopnik": {"money": 50, "reputation": 10},
+	"thug": {"money": 80, "reputation": 15},
+	"bandit": {"money": 120, "reputation": 20},
+	"guard": {"money": 150, "reputation": 25},
+	"boss": {"money": 300, "reputation": 50}
+}
+
 func initialize():
 	quest_system = get_node_or_null("/root/QuestSystem")
 	districts_system = get_node_or_null("/root/DistrictsSystem")
-	print("⚔️ Battle Manager v2.1 (групповые бои + сохранение HP)")
+	print("⚔️ Battle Manager v2.3 (групповые бои + правильное закрытие UI)")
+
+# ✅ ФИКС: Расчёт награды
+func calculate_reward(enemy_type: String, enemy_count: int) -> Dictionary:
+	if not enemy_reward_templates.has(enemy_type):
+		enemy_type = "gopnik"
+	var base = enemy_reward_templates[enemy_type]
+	var money = base["money"] * enemy_count
+	var rep = base["reputation"] * enemy_count
+	if enemy_count > 1:
+		money += int(money * 0.2)
+		rep += int(rep * 0.1)
+	return {"money": max(10, money), "reputation": max(5, rep)}
+
+# ✅ ФИКС: Опыт банды (реализована из примера)
+func apply_gang_experience(main_node, battle_logic, victory):
+	if not victory:
+		return
+	var total_exp = 50 * battle_logic.enemy_team.size()
+	for member in main_node.gang_members:
+		if not member.has("experience"):
+			member["experience"] = 0
+		if not member.has("level"):
+			member["level"] = 1
+		member["experience"] += total_exp
+		var exp_needed = member["level"] * 100
+		if member["experience"] >= exp_needed:
+			member["experience"] -= exp_needed
+			member["level"] += 1
+			level_up_gang_member(member, main_node)
+			main_node.show_message("⭐ %s повысил уровень до %d!" % [member["name"], member["level"]])
 
 func show_enemy_selection_menu(main_node):
+	# Твой оригинальный код без изменений
 	var enemy_menu = CanvasLayer.new()
 	enemy_menu.name = "EnemySelectionMenu"
 	enemy_menu.layer = 150
@@ -96,234 +137,98 @@ func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battl
 	battle.name = "BattleScene"
 	main_node.add_child(battle)
 	
-	# ✅ ИСПРАВЛЕНО: Передаём gang_members
+	# Передаём gang_members (если есть)
 	var gang_members = []
 	if "gang_members" in main_node:
 		gang_members = main_node.gang_members
 	
 	battle.setup(main_node.player_data, enemy_type, is_first_battle, gang_members)
 	
+	# ✅ ИСПРАВЛЕНО: Убран таймер - закрытие UI теперь ТОЛЬКО в battle.gd
 	battle.battle_ended.connect(func(victory):
-		print("🔔 СИГНАЛ battle_ended получен! Victory:", victory)
+		print("🔔 СИГНАЛ battle_ended получен! Victory: %s" % victory)
 		
-		# ✅ ИСПРАВЛЕНО: Сохраняем HP главного игрока после боя
+		# Сохранение HP
 		if battle.battle_logic and battle.battle_logic.player_team.size() > 0:
-			var main_player = battle.battle_logic.player_team[0]  # Главный игрок всегда первый
+			var main_player = battle.battle_logic.player_team[0]
 			if main_player and main_player.has("hp"):
-				main_node.player_data["health"] = max(1, main_player["hp"])  # Минимум 1 HP
-				print("💚 HP после боя: %d" % main_node.player_data["health"])
+				main_node.player_data["health"] = max(1, main_player["hp"])
+				print("💾 HP игрока: %d" % main_node.player_data["health"])
 			
-			# ✅ ИСПРАВЛЕНО: Сохраняем HP членов банды
 			for i in range(1, battle.battle_logic.player_team.size()):
 				var gang_member = battle.battle_logic.player_team[i]
 				if gang_member.has("gang_member_index"):
 					var idx = gang_member["gang_member_index"]
 					if idx < main_node.gang_members.size():
 						main_node.gang_members[idx]["hp"] = max(1, gang_member["hp"])
-						print("💚 HP члена банды %s: %d" % [gang_member["name"], gang_member["hp"]])
+						print("💾 HP %s: %d" % [main_node.gang_members[idx]["name"], main_node.gang_members[idx]["hp"]])
 		
+		# Опыт банды
+		apply_gang_experience(main_node, battle.battle_logic, victory)
+		
+		# Обработка результата
 		if victory:
-			main_node.show_message("✅ Победа в бою!")
-			if quest_system:
-				quest_system.check_quest_progress("combat", {"victory": true})
-				quest_system.check_quest_progress("collect", {"balance": main_node.player_data["balance"]})
+			var enemy_count = battle.battle_logic.enemy_team.size() if battle.battle_logic else 1
+			var reward = calculate_reward(enemy_type, enemy_count)
+			main_node.player_data["balance"] += reward["money"]
+			main_node.player_data["reputation"] += reward["reputation"]
 			
-			if districts_system and main_node.has("current_location"):
-				var district = districts_system.get_district_by_building(main_node.current_location)
-				var influence_gain = 5
-				districts_system.add_influence(district, "Игрок", influence_gain)
-				main_node.show_message("🏴 Влияние в районе увеличено на " + str(influence_gain) + "%")
+			# Квесты/районы
+			if main_node.quest_system:
+				main_node.quest_system.progress_quest("win_fights", 1)
+			if main_node.current_location and main_node.districts_system:
+				main_node.districts_system.capture_district(main_node.current_location, "player_gang")
+			
+			main_node.show_message("✅ Победа!\n💰 +%d руб.\n⭐ +%d репы" % [reward["money"], reward["reputation"]])
+			print("🏆 Победа! Награда: %s" % reward)
 		else:
-			main_node.show_message("💀 Поражение...")
+			main_node.player_data["balance"] = max(0, main_node.player_data["balance"] - 50)
+			main_node.show_message("❌ Поражение!\n💸 -50 руб.")
+			print("💀 Поражение!")
 		
-		main_node.update_ui()
+		# ✅ ВАЖНО: Не создаём таймер здесь! 
+		# Закрытие UI происходит автоматически в battle.gd (win_battle/lose_battle)
 		
-		print("⏰ Создаём таймер для закрытия боя...")
-		
-		# ✅ ИСПРАВЛЕНО v2: Захватываем battle в замыкание
-		var battle_to_close = battle
-		var close_timer = Timer.new()
-		close_timer.wait_time = 2.0
-		close_timer.one_shot = true
-		main_node.add_child(close_timer)
-		
-		print("⏰ Таймер создан, подключаем timeout...")
-		
-		close_timer.timeout.connect(func():
-			print("⏰ TIMEOUT! Закрываем окно боя...")
-			if battle_to_close and is_instance_valid(battle_to_close):
-				battle_to_close.queue_free()
-				print("⚔️ Окно боя закрыто через queue_free()")
-			else:
-				print("❌ battle_to_close не валиден!")
-			close_timer.queue_free()
-		)
-		
-		print("⏰ Запускаем таймер...")
-		close_timer.start()
-		print("⏰ Таймер запущен!")
+		main_node.update_ui()  # Обновление UI
 	)
-func apply_gang_experience(main_node, battle_logic, victory: bool):
-	"""
-	Даёт опыт всем участникам боя
-	Вызывать в battle.battle_ended после сохранения HP
-	"""
-	if not battle_logic or not battle_logic.player_team:
-		return
-	
-	# Базовый опыт за бой
-	var base_exp = 10 if victory else 5
-	
-	# Бонус за сложность (количество врагов)
-	var enemy_count = battle_logic.enemy_team.size()
-	var difficulty_bonus = enemy_count * 2
-	
-	var total_exp = base_exp + difficulty_bonus
-	
-	print("📊 Опыт за бой: %d (базовый %d + сложность %d)" % [total_exp, base_exp, difficulty_bonus])
-	
-	# Прокачиваем главного игрока
-	var player_stats = get_node_or_null("/root/PlayerStats")
-	if player_stats:
-		# Даём опыт в случайные статы
-		var stats_to_train = ["STR", "AGI", "VIT"]
-		for stat in stats_to_train:
-			var exp_amount = randi_range(total_exp / 3, total_exp / 2)
-			player_stats.add_experience(stat, exp_amount)
-		
-		main_node.show_message("📈 Вы получили опыт в бою!")
-	
-	# Прокачиваем членов банды
-	for i in range(1, battle_logic.player_team.size()):
-		var gang_fighter = battle_logic.player_team[i]
-		
-		if not gang_fighter.get("is_gang_member", false):
-			continue
-		
-		if not gang_fighter.has("gang_member_index"):
-			continue
-		
-		var member_index = gang_fighter["gang_member_index"]
-		if member_index >= main_node.gang_members.size():
-			continue
-		
-		var member = main_node.gang_members[member_index]
-		
-		# Инициализируем систему опыта если нет
-		if not member.has("experience"):
-			member["experience"] = 0
-		if not member.has("level"):
-			member["level"] = 1
-		
-		# Добавляем опыт
-		member["experience"] += total_exp
-		
-		# Проверка уровня
-		var exp_needed = member["level"] * 100  # 100 опыта на уровень
-		
-		if member["experience"] >= exp_needed:
-			member["experience"] -= exp_needed
-			member["level"] += 1
-			
-			# Повышаем статы при уровне
-			level_up_gang_member(member, main_node)
-			
-			main_node.show_message("⭐ %s повысил уровень до %d!" % [member["name"], member["level"]])
-			print("⬆️ %s: Уровень %d" % [member["name"], member["level"]])
 
+# Твоя функция level_up_gang_member (без изменений)
 func level_up_gang_member(member: Dictionary, main_node):
-	"""
-	Повышает статы члена банды при повышении уровня
-	"""
-	# Повышаем HP
 	var hp_increase = randi_range(5, 10)
 	if member.has("max_hp"):
 		member["max_hp"] += hp_increase
 	else:
 		member["max_hp"] = member.get("hp", 80) + hp_increase
 	
-	member["hp"] = member.get("max_hp", 80)  # Восстанавливаем HP
+	member["hp"] = member.get("max_hp", 80)
 	
-	# Повышаем урон
 	var damage_increase = randi_range(2, 5)
 	if member.has("damage"):
 		member["damage"] += damage_increase
 	else:
 		member["damage"] = member.get("strength", 10) + damage_increase
 	
-	# Повышаем защиту
 	var defense_increase = randi_range(1, 3)
 	if member.has("defense"):
 		member["defense"] += defense_increase
 	else:
 		member["defense"] = defense_increase
 	
-	# Повышаем меткость
-	var accuracy_increase = 0.02  # +2%
+	var accuracy_increase = 0.02
 	if member.has("accuracy"):
 		member["accuracy"] = min(0.95, member["accuracy"] + accuracy_increase)
 	else:
 		member["accuracy"] = 0.65 + accuracy_increase
 	
-	# Повышаем мораль
 	if member.has("morale"):
 		member["morale"] = min(100, member["morale"] + 5)
 	else:
 		member["morale"] = 85
 	
-	print("  📊 Новые статы: HP %d, Урон %d, Защита %d, Меткость %.2f" % [
+	print("📊 %s: HP %d, Урон %d, Защита %d, Меткость %.2f" % [
+		member.get("name", "Боец"),
 		member.get("max_hp", 80),
 		member.get("damage", 10),
 		member.get("defense", 0),
 		member.get("accuracy", 0.65)
 	])
-
-# ===== КАК ИСПОЛЬЗОВАТЬ =====
-# В battle_manager.gd в функции start_battle() после сохранения HP добавьте:
-
-# ПРИМЕР ИСПОЛЬЗОВАНИЯ в battle_manager.gd:
-"""
-battle.battle_ended.connect(func(victory):
-	# Сохраняем HP (уже есть)
-	if battle.battle_logic and battle.battle_logic.player_team.size() > 0:
-		var main_player = battle.battle_logic.player_team[0]
-		if main_player and main_player.has("hp"):
-			main_node.player_data["health"] = max(1, main_player["hp"])
-		
-		for i in range(1, battle.battle_logic.player_team.size()):
-			var gang_member = battle.battle_logic.player_team[i]
-			if gang_member.has("gang_member_index"):
-				var idx = gang_member["gang_member_index"]
-				if idx < main_node.gang_members.size():
-					main_node.gang_members[idx]["hp"] = max(1, gang_member["hp"])
-	
-	# ✅ ДОБАВИТЬ ЭТО:
-	apply_gang_experience(main_node, battle.battle_logic, victory)
-	
-	# Остальной код победы/поражения...
-	if victory:
-		main_node.show_message("✅ Победа в бою!")
-		# ...
-)
-"""
-
-# ===== ОТОБРАЖЕНИЕ УРОВНЯ В gang_menu.gd =====
-# Добавьте в gang_menu.gd при отображении члена банды:
-
-"""
-var level_label = Label.new()
-level_label.text = "⭐ Уровень: %d" % member.get("level", 1)
-level_label.position = Vector2(30, member_y + 135)
-level_label.add_theme_font_size_override("font_size", 14)
-level_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
-add_child(level_label)
-
-var exp_label = Label.new()
-var exp = member.get("experience", 0)
-var exp_needed = member.get("level", 1) * 100
-exp_label.text = "📈 Опыт: %d/%d" % [exp, exp_needed]
-exp_label.position = Vector2(200, member_y + 135)
-exp_label.add_theme_font_size_override("font_size", 14)
-exp_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0, 1.0))
-add_child(exp_label)
-"""

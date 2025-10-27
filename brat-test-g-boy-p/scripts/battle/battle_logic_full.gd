@@ -1,8 +1,9 @@
-# battle_logic_full.gd (ИСПРАВЛЕНО - логи атак игрока/банды)
+# battle_logic_full.gd (ИСПРАВЛЕНО - логи атак игрока/банды + сигнал окончания боя)
 extends Node
 
 signal turn_completed()
 signal battle_state_changed(new_state: String)
+signal battle_finished(victory: bool)  # ✅ НОВЫЙ СИГНАЛ для уведомления о конце боя
 
 var player_team: Array = []
 var enemy_team: Array = []
@@ -289,6 +290,8 @@ func enemy_turn() -> Array:
 	
 	var battle_result = check_battle_end()
 	if battle_result["ended"]:
+		# ✅ ИСПРАВЛЕНИЕ: Испускаем сигнал о завершении боя
+		battle_finished.emit(battle_result["victory"])
 		return actions
 	
 	turn = "player"
@@ -320,7 +323,10 @@ func next_attacker():
 			battle_state_changed.emit("next_attacker")
 	else:
 		var battle_result = check_battle_end()
-		if not battle_result["ended"]:
+		if battle_result["ended"]:
+			# ✅ ИСПРАВЛЕНИЕ: Испускаем сигнал о завершении боя
+			battle_finished.emit(battle_result["victory"])
+		else:
 			turn = "enemy"
 			current_attacker_index = 0
 			battle_state_changed.emit("enemy_turn")

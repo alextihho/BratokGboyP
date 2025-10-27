@@ -48,8 +48,9 @@ var locations = {
 	"ПОРТ": {"position": Vector2(600, 450), "actions": ["Купить ПМ (500р)", "Купить отмычку (100р)", "Уйти"], "grid_square": "10_5"},
 	"УЛИЦА": {"position": Vector2(150, 1050), "actions": ["Прогуляться", "Встретить знакомого", "Посмотреть вокруг"], "grid_square": "2_13"},
 	"БОЛЬНИЦА": {"position": Vector2(400, 500), "actions": ["Лечиться", "Купить аптечку (100р)", "Уйти"], "grid_square": "6_6"},
-	"ФСБ": {"position": Vector2(350, 300), "actions": ["💰 Дать взятку", "🚪 Уйти"], "grid_square": "5_3"}  # ✅ ДОБАВЛЕНО
-	
+	"ФСБ": {"position": Vector2(350, 300), "actions": ["💰 Дать взятку", "🚪 Уйти"], "grid_square": "5_3"},
+	"БАР": {"position": Vector2(420, 540), "actions": ["Отдохнуть", "Бухать с бандой", "Уйти"], "grid_square": "7_7"},  # ✅ Перемещён в активный квадрат
+	"АВТОСАЛОН": {"position": Vector2(180, 540), "actions": ["Выбор машины", "Починить машину", "Уйти"], "grid_square": "3_7"}  # ✅ НОВОЕ
 }
 
 # ===== ДАННЫЕ ИГРОКА =====
@@ -62,7 +63,10 @@ var player_data = {
 	"inventory": ["Пачка сигарет", "Булка", "Нож"],
 	"pockets": [null, null, null],
 	"current_square": "6_2",
-	"first_battle_completed": false  # ✅ Добавлено!
+	"first_battle_completed": false,
+	# ✅ НОВОЕ: Система машин
+	"car": null,  # Текущая машина (null если нет)
+	"car_condition": 100.0  # Состояние машины (0-100)
 }
 
 # ===== ДАННЫЕ БАНДЫ =====
@@ -149,7 +153,14 @@ func on_location_clicked(location_name: String):
 func on_bottom_button_pressed(button_name: String):
 	match button_name:
 		"Банда":
-			menu_manager.show_gang_menu(self)
+			# ✅ ИСПРАВЛЕНО: Проверяем gang_manager, если нет - используем menu_manager
+			if gang_manager:
+				gang_manager.show_gang_menu(self, gang_members)
+			elif menu_manager:
+				menu_manager.show_gang_menu(self)
+			else:
+				show_message("❌ Система банды недоступна!")
+				print("❌ GangManager и MenuManager не найдены!")
 		"Районы":
 			districts_menu_manager.show_districts_menu(self)
 		"Квесты":
@@ -317,6 +328,10 @@ func load_game_from_data(save_data: Dictionary):
 		# ✅ ВАЖНО: Восстанавливаем флаг первого боя
 		player_data["first_battle_completed"] = player.get("first_battle_completed", true)
 		
+		# ✅ НОВОЕ: Восстанавливаем машину
+		player_data["car"] = player.get("car", null)
+		player_data["car_condition"] = player.get("car_condition", 100.0)
+		
 		if player.has("current_square"):
 			player_data["current_square"] = player["current_square"]
 	
@@ -324,10 +339,48 @@ func load_game_from_data(save_data: Dictionary):
 	if save_data.has("gang"):
 		gang_members = save_data["gang"].duplicate(true)
 		
-		# Инициализируем is_active
+		print("📂 Загружаем банду: %d членов" % gang_members.size())
+		
+		# ✅ МИГРАЦИЯ: Обновляем данные для совместимости со старыми сохранениями
 		for i in range(gang_members.size()):
-			if not gang_members[i].has("is_active"):
-				gang_members[i]["is_active"] = (i == 0)
+			var member = gang_members[i]
+			
+			# Инициализируем is_active
+			if not member.has("is_active"):
+				member["is_active"] = (i == 0)  # Главный всегда активен
+			
+			# ✅ Стандартизируем поля HP для боёв
+			if not member.has("hp"):
+				member["hp"] = member.get("health", 100)
+			if not member.has("max_hp"):
+				member["max_hp"] = member.get("hp", 100)
+			
+			# ✅ Боевые характеристики
+			if not member.has("damage"):
+				member["damage"] = member.get("strength", 10)
+			if not member.has("defense"):
+				member["defense"] = 0
+			if not member.has("morale"):
+				member["morale"] = 80
+			if not member.has("accuracy"):
+				member["accuracy"] = 0.65
+			if not member.has("weapon"):
+				member["weapon"] = "Кулаки"
+			
+			# ✅ Инвентарь
+			if not member.has("inventory"):
+				member["inventory"] = []
+			if not member.has("equipment"):
+				member["equipment"] = {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null}
+			if not member.has("pockets"):
+				member["pockets"] = [null, null, null]
+			
+			print("  [%d] %s (active: %s, hp: %d)" % [
+				i, 
+				member.get("name", "???"), 
+				member.get("is_active", false),
+				member.get("hp", 100)
+			])
 	
 	# ✅ ИСПРАВЛЕНО: Восстанавливаем квесты и районы
 	if save_manager:

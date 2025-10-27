@@ -12,13 +12,27 @@ func _ready():
 	gang_generator = get_node("/root/GangMemberGenerator")
 
 func setup(members):
-	gang_members = members
+	# ✅ ИСПРАВЛЕНИЕ: Если members пустой или это сам Node - берем gang_members из него
+	if members is Node:
+		# Если передан Node вместо массива - берем gang_members из него
+		var main_node = members
+		if "gang_members" in main_node:
+			gang_members = main_node.gang_members
+		else:
+			gang_members = []
+			print("⚠️ WARNING: gang_members не найден в main_node!")
+	else:
+		gang_members = members
 	
 	# ✅ ВАЖНО: Инициализируем is_active для всех членов
 	for i in range(gang_members.size()):
 		if not gang_members[i].has("is_active"):
 			# Главный игрок (индекс 0) всегда активен
 			gang_members[i]["is_active"] = (i == 0)
+	
+	print("📊 Gang menu setup: %d членов банды" % gang_members.size())
+	for i in range(gang_members.size()):
+		print("  - [%d] %s (active: %s)" % [i, gang_members[i].get("name", "???"), gang_members[i].get("is_active", false)])
 	
 	create_ui()
 
@@ -50,15 +64,27 @@ func create_ui():
 	
 	# ✅ Счётчик активных бойцов
 	var active_count = 0
+	var total_count = gang_members.size()
 	for member in gang_members:
 		if member.get("is_active", false):
 			active_count += 1
 	
 	var active_label = Label.new()
-	active_label.text = "Активных бойцов: %d/%d" % [active_count, gang_members.size()]
+	active_label.text = "Активных бойцов: %d/%d" % [active_count, total_count]
+	
+	# ✅ Добавляем подсказку если есть неактивные
+	if active_count < total_count:
+		active_label.text += " (нажмите + чтобы активировать)"
+	
 	active_label.position = Vector2(30, 200)
-	active_label.add_theme_font_size_override("font_size", 18)
-	active_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1.0))
+	active_label.add_theme_font_size_override("font_size", 16)
+	
+	# Меняем цвет в зависимости от активности
+	if active_count < total_count:
+		active_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3, 1.0))  # Оранжевый - есть неактивные
+	else:
+		active_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1.0))  # Зеленый - все активны
+	
 	add_child(active_label)
 	
 	var hire_btn = Button.new()
@@ -406,14 +432,27 @@ func hire_candidate(candidate: Dictionary, cost: int, hire_menu: CanvasLayer):
 	
 	main_node.gang_members.append(candidate)
 	
-	main_node.show_message("✅ " + candidate["name"] + " нанят! Активируйте его в меню банды.")
+	print("✅ Нанят: " + candidate["name"])
+	print("📊 Всего в банде: %d человек" % main_node.gang_members.size())
+	for i in range(main_node.gang_members.size()):
+		var m = main_node.gang_members[i]
+		print("  [%d] %s (active: %s)" % [i, m.get("name", "???"), m.get("is_active", false)])
+	
+	main_node.show_message("✅ " + candidate["name"] + " нанят!\n⚠️ АКТИВИРУЙТЕ его в меню банды (кнопка +)")
 	main_node.update_ui()
 	
 	hire_menu.queue_free()
 	queue_free()
 	
+	# ✅ ИСПРАВЛЕНИЕ: Ждем немного перед обновлением меню
+	await main_node.get_tree().create_timer(0.1).timeout
+	
 	var gang_manager = get_node("/root/GangManager")
-	gang_manager.show_gang_menu(main_node, main_node.gang_members)
+	if gang_manager:
+		print("🔄 Вызываем gang_manager.show_gang_menu...")
+		gang_manager.show_gang_menu(main_node, main_node.gang_members)
+	else:
+		print("❌ GangManager не найден!")
 
 func show_stats_window():
 	var player_stats = get_node("/root/PlayerStats")

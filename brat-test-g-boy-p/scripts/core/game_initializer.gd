@@ -15,6 +15,8 @@ func load_autoload_systems(game_controller):
 	game_controller.simple_jobs = get_node_or_null("/root/SimpleJobs")
 	game_controller.hospital_system = get_node_or_null("/root/HospitalSystem")
 	game_controller.time_system = get_node_or_null("/root/TimeSystem")
+	# ✅ bar_system и car_system НЕ присваиваем в game_controller
+	# Они будут доступны через get_node("/root/BarSystem") в action_handler
 	
 	print("✅ Автолоад системы загружены")
 

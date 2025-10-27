@@ -44,6 +44,7 @@ func _ready():
 	# Подключаем сигналы
 	battle_logic.turn_completed.connect(_on_turn_completed)
 	battle_logic.battle_state_changed.connect(_on_battle_state_changed)
+	battle_logic.battle_finished.connect(_on_battle_finished)  # ✅ НОВОЕ: Подключаем сигнал окончания
 	battle_avatars.target_selected.connect(_on_target_selected)
 	battle_avatars.avatar_clicked.connect(_on_avatar_clicked)
 
@@ -393,6 +394,7 @@ func on_run():
 
 # ========== ХОД ВРАГА ==========
 func execute_enemy_turn():
+	print("⚔️ Выполняется ход врага...")
 	var actions = battle_logic.enemy_turn()
 	
 	for action in actions:
@@ -413,22 +415,26 @@ func execute_enemy_turn():
 		update_teams_info()
 		await get_tree().create_timer(0.5).timeout
 	
-	check_battle_end()
-
-# ========== ПРОВЕРКА ОКОНЧАНИЯ БОЯ ==========
-func check_battle_end():
-	var result = battle_logic.check_battle_end()
+	# ✅ ИСПРАВЛЕНО: После завершения хода врага проверяем состояние боя
+	# battle_logic уже установил turn = "player" и вызвал сигнал,
+	# но нам нужно дождаться завершения анимаций
+	print("✅ Ход врага завершен, ход переходит к игроку")
 	
-	if result["ended"]:
-		if result["victory"]:
-			win_battle()
-		else:
-			lose_battle()
-	else:
-		lock_buttons(false)
+	# Обновляем интерфейс для хода игрока
+	lock_buttons(false)
+	update_turn_info()
 
+# ========== ПОБЕДА И ПОРАЖЕНИЕ ==========
 func win_battle():
+	print("==================================================")
+	print("🏆 WIN_BATTLE() ВЫЗВАНА!")
+	print("==================================================")
+	
 	add_to_log("✅ ПОБЕДА!")
+	
+	# Блокируем все кнопки СРАЗУ
+	lock_buttons(true)
+	print("✅ Кнопки заблокированы")
 	
 	var total_reward = 0
 	var alive_members = 0
@@ -443,7 +449,7 @@ func win_battle():
 			alive_members += 1
 	
 	var main_node = get_parent()
-	if main_node and main_node.has("player_data"):
+	if main_node and "player_data" in main_node:
 		main_node.player_data["balance"] += total_reward
 		main_node.player_data["reputation"] += 5 + battle_logic.enemy_team.size()
 		
@@ -454,18 +460,64 @@ func win_battle():
 			add_to_log("👥 Бонус за выживших: +%d руб." % bonus)
 	
 	add_to_log("💰 +%d руб., +%d репутации" % [total_reward, 5 + battle_logic.enemy_team.size()])
+	add_to_log("⏰ Окно закроется через 2 секунды...")
 	
 	# Испускаем сигнал СРАЗУ
+	print("📡 Испускаем сигнал battle_ended...")
 	battle_ended.emit(true)
+	print("✅ Сигнал испущен!")
 	
-	# ✅ РАДИКАЛЬНОЕ РЕШЕНИЕ: Закрываем окно ПРЯМО ЗДЕСЬ через 2 секунды
-	print("⏰ Ждём 2 секунды перед закрытием окна боя...")
-	await get_tree().create_timer(2.0).timeout
-	print("⚔️ ЗАКРЫВАЕМ ОКНО БОЯ через queue_free()!")
-	queue_free()
+	# ✅ МЕТОД 1: Таймер (основной)
+	print("⏰ Создаём таймер закрытия...")
+	var close_timer = Timer.new()
+	close_timer.wait_time = 2.0
+	close_timer.one_shot = true
+	close_timer.name = "BattleCloseTimer"
+	add_child(close_timer)
+	print("✅ Таймер создан и добавлен как дочерний элемент")
+	
+	close_timer.timeout.connect(func():
+		print("==================================================")
+		print("⏰ TIMEOUT! Таймер сработал!")
+		print("==================================================")
+		
+		# Проверяем валидность
+		if is_instance_valid(self):
+			print("✅ self валиден!")
+			print("🗑️ Вызываем queue_free()...")
+			queue_free()
+			print("✅ queue_free() вызван!")
+		else:
+			print("❌ ERROR: self НЕ валиден!")
+		
+		print("==================================================")
+	)
+	
+	close_timer.start()
+	print("⏰ Таймер ЗАПУЩЕН! (2 секунды)")
+	print("⏰ Ждём срабатывания...")
+	
+	# ✅ МЕТОД 2: Резервный - call_deferred через SceneTree
+	print("🔄 Создаём резервный таймер через get_tree()...")
+	get_tree().create_timer(2.5).timeout.connect(func():
+		print("🔄 РЕЗЕРВНЫЙ ТАЙМЕР сработал!")
+		if is_instance_valid(self) and get_parent() != null:
+			print("⚠️ Основной таймер не сработал! Принудительное закрытие...")
+			call_deferred("queue_free")
+	)
+	print("✅ Резервный таймер создан!")
+	print("==================================================")
 
 func lose_battle():
+	print("==================================================")
+	print("💀 LOSE_BATTLE() ВЫЗВАНА!")
+	print("==================================================")
+	
 	add_to_log("💀 ПОРАЖЕНИЕ!")
+	
+	# Блокируем все кнопки СРАЗУ
+	lock_buttons(true)
+	print("✅ Кнопки заблокированы")
 	
 	# Проверяем, выжил ли главный игрок
 	var main_player_alive = false
@@ -479,20 +531,67 @@ func lose_battle():
 	else:
 		add_to_log("🏃 Вы чудом спаслись...")
 	
-	# Испускаем сигнал СРАЗУ
-	battle_ended.emit(false)
+	add_to_log("⏰ Окно закроется через 2 секунды...")
 	
-	# ✅ РАДИКАЛЬНОЕ РЕШЕНИЕ: Закрываем окно ПРЯМО ЗДЕСЬ через 2 секунды
-	print("⏰ Ждём 2 секунды перед закрытием окна боя...")
-	await get_tree().create_timer(2.0).timeout
-	print("⚔️ ЗАКРЫВАЕМ ОКНО БОЯ через queue_free()!")
-	queue_free()
+	# Испускаем сигнал СРАЗУ
+	print("📡 Испускаем сигнал battle_ended...")
+	battle_ended.emit(false)
+	print("✅ Сигнал испущен!")
+	
+	# ✅ МЕТОД 1: Таймер (основной)
+	print("⏰ Создаём таймер закрытия...")
+	var close_timer = Timer.new()
+	close_timer.wait_time = 2.0
+	close_timer.one_shot = true
+	close_timer.name = "BattleCloseTimer"
+	add_child(close_timer)
+	print("✅ Таймер создан и добавлен как дочерний элемент")
+	
+	close_timer.timeout.connect(func():
+		print("==================================================")
+		print("⏰ TIMEOUT! Таймер сработал!")
+		print("==================================================")
+		
+		# Проверяем валидность
+		if is_instance_valid(self):
+			print("✅ self валиден!")
+			print("🗑️ Вызываем queue_free()...")
+			queue_free()
+			print("✅ queue_free() вызван!")
+		else:
+			print("❌ ERROR: self НЕ валиден!")
+		
+		print("==================================================")
+	)
+	
+	close_timer.start()
+	print("⏰ Таймер ЗАПУЩЕН! (2 секунды)")
+	print("⏰ Ждём срабатывания...")
+	
+	# ✅ МЕТОД 2: Резервный - call_deferred через SceneTree
+	print("🔄 Создаём резервный таймер через get_tree()...")
+	get_tree().create_timer(2.5).timeout.connect(func():
+		print("🔄 РЕЗЕРВНЫЙ ТАЙМЕР сработал!")
+		if is_instance_valid(self) and get_parent() != null:
+			print("⚠️ Основной таймер не сработал! Принудительное закрытие...")
+			call_deferred("queue_free")
+	)
+	print("✅ Резервный таймер создан!")
+	print("==================================================")
 
 # ========== ОБРАБОТКА СИГНАЛОВ ==========
 func _on_turn_completed():
 	update_turn_info()
 	battle_avatars.update_all_avatars()
 	update_teams_info()
+
+func _on_battle_finished(victory: bool):
+	print("🔔 СИГНАЛ battle_finished получен! Victory: %s" % victory)
+	# Вызываем соответствующую функцию
+	if victory:
+		win_battle()
+	else:
+		lose_battle()
 
 func _on_battle_state_changed(new_state: String):
 	match new_state:
