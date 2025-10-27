@@ -1,4 +1,4 @@
-# grid_movement_manager.gd (ИСПРАВЛЕН - СТРОГАЯ ПРОВЕРКА ГРАНИЦ)
+# grid_movement_manager.gd (ИСПРАВЛЕНО - С ПОДДЕРЖКОЙ МАШИНЫ)
 extends Node
 
 signal movement_started(from: String, to: String)
@@ -8,6 +8,7 @@ var main_node
 var grid_system
 var movement_system
 var time_system
+var log_system  # ✅ НОВОЕ
 
 var movement_menu = null
 var pending_target_square: String = ""
@@ -19,75 +20,50 @@ func initialize(p_main_node, p_grid_system, p_movement_system):
 	grid_system = p_grid_system
 	movement_system = p_movement_system
 	time_system = get_node_or_null("/root/TimeSystem")
+	log_system = get_node_or_null("/root/LogSystem")  # ✅ НОВОЕ
 	print("🚶 Grid Movement Manager инициализирован")
 
 func handle_grid_click(click_pos: Vector2):
-	# ✅ СТРОГАЯ ПРОВЕРКА ГРАНИЦ!
-	print("🎯 Grid click check: " + str(click_pos))
-	
-	# ✅ БЛОКИРУЕМ верхнюю панель (y < 120)
+	# Проверки границ
 	if click_pos.y < 120:
-		print("   ❌ ВЕРХНЯЯ ПАНЕЛЬ (y=%d)" % click_pos.y)
 		return
-	
-	# ✅ БЛОКИРУЕМ нижнюю панель (y >= 1180)
 	if click_pos.y >= 1180:
-		print("   ❌ НИЖНЯЯ ПАНЕЛЬ (y=%d)" % click_pos.y)
 		return
-	
-	# ✅ БЛОКИРУЕМ если идёт перемещение
 	if is_moving:
-		print("   ⚠️ Идёт перемещение")
 		return
-	
-	# ✅ БЛОКИРУЕМ если меню открыто
 	if is_menu_open:
-		print("   ⚠️ Меню передвижения открыто")
 		return
-	
-	# ✅ БЛОКИРУЕМ если идёт бой
 	if main_node.get_node_or_null("BattleScene"):
-		print("   ⚠️ Бой идёт")
 		return
 	
-	# ✅ БЛОКИРУЕМ если ЛЮБОЕ меню открыто
+	# Проверка открытых меню
 	var open_menus = [
 		"BuildingMenu", "GangMenu", "InventoryMenu", "QuestMenu",
-		"DistrictsMenu", "MainMenuLayer", "HospitalMenu", "JobsMenu"
+		"DistrictsMenu", "MainMenuLayer", "HospitalMenu", "JobsMenu", "MainMenu"
 	]
 	
 	for menu_name in open_menus:
 		if main_node.get_node_or_null(menu_name):
-			print("   ⚠️ Открыто меню: " + menu_name)
 			return
 	
-	# ✅ Получаем квадрат
 	var clicked_square = grid_system.get_square_at_position(click_pos)
 	
 	if clicked_square == "":
-		print("   ⚠️ Клик вне сетки")
 		return
 	
 	var current_square = grid_system.get_player_square()
 	
-	# ✅ Если кликнули на свой квадрат
 	if clicked_square == current_square:
 		var building = grid_system.get_building(clicked_square)
 		if building and building != "":
-			print("   🏢 Открываем меню здания: " + building)
 			main_node.show_location_menu(building)
-		else:
-			print("   ⚠️ Уже на этом квадрате")
 		return
 	
-	# ✅ Проверяем есть ли здание в ЦЕЛЕВОЙ клетке
 	var building = grid_system.get_building(clicked_square)
 	
 	if building and building != "":
-		print("   🎯 Клик на здание: " + building)
 		show_movement_menu(clicked_square, click_pos, building)
 	else:
-		print("   🎯 Клик на пустой квадрат: " + clicked_square)
 		show_movement_menu(clicked_square, click_pos, "")
 
 func show_movement_menu(target_square: String, click_pos: Vector2, building_name: String = ""):
@@ -98,7 +74,25 @@ func show_movement_menu(target_square: String, click_pos: Vector2, building_name
 	
 	var current_square = grid_system.get_player_square()
 	var distance = grid_system.get_distance(current_square, target_square)
-	var time_walk = distance * 30
+	
+	# ✅ НОВОЕ: Определяем тип транспорта
+	var transport_type = movement_system.TransportType.WALK
+	var transport_name = "Пешком"
+	var time_cost = distance * 30
+	
+	if main_node.has_method("get_current_transport_type"):
+		transport_type = main_node.get_current_transport_type()
+		
+		match transport_type:
+			movement_system.TransportType.WALK:
+				transport_name = "Пешком"
+				time_cost = distance * 30
+			movement_system.TransportType.CAR_LEVEL1:
+				transport_name = "На машине (ВАЗ)"
+				time_cost = distance * 10
+			movement_system.TransportType.CAR_LEVEL2:
+				transport_name = "На машине (Быстрая)"
+				time_cost = distance * 5
 	
 	movement_menu = CanvasLayer.new()
 	movement_menu.name = "MovementMenu"
@@ -131,34 +125,39 @@ func show_movement_menu(target_square: String, click_pos: Vector2, building_name
 	movement_menu.add_child(title)
 	
 	var info = Label.new()
-	info.text = "Расстояние: %d квадратов\nВремя: ~%d мин" % [distance, time_walk]
-	info.position = Vector2(240, 550)
+	info.text = "Расстояние: %d квадратов\nСпособ: %s\nВремя: ~%d мин" % [distance, transport_name, time_cost]
+	info.position = Vector2(220, 550)
 	info.add_theme_font_size_override("font_size", 16)
 	info.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9, 1.0))
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	movement_menu.add_child(info)
 	
-	var walk_btn = Button.new()
-	walk_btn.custom_minimum_size = Vector2(360, 60)
-	walk_btn.position = Vector2(180, 630)
-	walk_btn.text = "🚶 ИДТИ (~%d мин)" % time_walk
-	walk_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var move_btn = Button.new()
+	move_btn.custom_minimum_size = Vector2(360, 60)
+	move_btn.position = Vector2(180, 630)
 	
-	var style_walk = StyleBoxFlat.new()
-	style_walk.bg_color = Color(0.2, 0.5, 0.2, 1.0)
-	walk_btn.add_theme_stylebox_override("normal", style_walk)
+	# ✅ НОВОЕ: Иконка в зависимости от транспорта
+	var icon = "🚶" if transport_type == movement_system.TransportType.WALK else "🚗"
+	move_btn.text = "%s ИДТИ (~%d мин)" % [icon, time_cost]
+	move_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	var style_walk_hover = StyleBoxFlat.new()
-	style_walk_hover.bg_color = Color(0.3, 0.6, 0.3, 1.0)
-	walk_btn.add_theme_stylebox_override("hover", style_walk_hover)
+	var style_move = StyleBoxFlat.new()
+	style_move.bg_color = Color(0.2, 0.5, 0.2, 1.0)
+	move_btn.add_theme_stylebox_override("normal", style_move)
 	
-	walk_btn.add_theme_font_size_override("font_size", 20)
-	walk_btn.pressed.connect(func():
-		print("✅ Начало перехода к: " + pending_target_square)
-		start_movement(pending_target_square, time_walk, building_name)
+	var style_move_hover = StyleBoxFlat.new()
+	style_move_hover.bg_color = Color(0.3, 0.6, 0.3, 1.0)
+	move_btn.add_theme_stylebox_override("hover", style_move_hover)
+	
+	move_btn.add_theme_font_size_override("font_size", 20)
+	
+	# ✅ НОВОЕ: Передаем тип транспорта
+	move_btn.pressed.connect(func():
+		print("✅ Начало перехода к: " + pending_target_square + " (%s)" % transport_name)
+		start_movement(pending_target_square, time_cost, building_name, transport_type)
 		close_movement_menu()
 	)
-	movement_menu.add_child(walk_btn)
+	movement_menu.add_child(move_btn)
 	
 	var cancel_btn = Button.new()
 	cancel_btn.custom_minimum_size = Vector2(360, 60)
@@ -188,16 +187,36 @@ func close_movement_menu():
 		is_menu_open = false
 		pending_target_square = ""
 
-func start_movement(target_square: String, time_minutes: int, building_name: String = ""):
+func start_movement(target_square: String, time_minutes: int, building_name: String = "", transport_type: int = 0):
 	var current_square = grid_system.get_player_square()
 	
 	is_moving = true
 	
-	print("🚶 Начало движения: %s → %s" % [current_square, target_square])
+	var transport_name = "пешком"
+	match transport_type:
+		movement_system.TransportType.WALK:
+			transport_name = "пешком"
+		movement_system.TransportType.CAR_LEVEL1:
+			transport_name = "на машине"
+		movement_system.TransportType.CAR_LEVEL2:
+			transport_name = "на быстрой машине"
 	
-	show_movement_animation(time_minutes, building_name)
+	print("🚶 Начало движения: %s → %s (%s)" % [current_square, target_square, transport_name])
 	
+	# ✅ НОВОЕ: Логируем движение
+	if log_system:
+		log_system.add_movement_log("🚶 %s → %s (%s, %d мин)" % [
+			current_square,
+			target_square,
+			transport_name,
+			time_minutes
+		])
+	
+	show_movement_animation(time_minutes, building_name, transport_type)
+	
+	# ✅ КРИТИЧНО: Добавляем время
 	if time_system:
+		print("⏰ Добавляем %d минут" % time_minutes)
 		time_system.add_minutes(time_minutes)
 	
 	await main_node.get_tree().create_timer(1.5).timeout
@@ -207,7 +226,9 @@ func start_movement(target_square: String, time_minutes: int, building_name: Str
 	if main_node.player_data:
 		main_node.player_data["current_square"] = target_square
 	
-	main_node.update_ui()
+	# ✅ КРИТИЧНО: Обновляем UI времени
+	main_node.call_deferred("update_time_ui")
+	main_node.call_deferred("update_ui")
 	
 	is_moving = false
 	
@@ -218,7 +239,7 @@ func start_movement(target_square: String, time_minutes: int, building_name: Str
 		print("🏢 Прибыли к зданию: " + building_name)
 		main_node.show_location_menu(building_name)
 
-func show_movement_animation(time_minutes: int, building_name: String):
+func show_movement_animation(time_minutes: int, building_name: String, transport_type: int = 0):
 	var anim_layer = CanvasLayer.new()
 	anim_layer.name = "MovementAnimation"
 	anim_layer.layer = 200
@@ -229,8 +250,13 @@ func show_movement_animation(time_minutes: int, building_name: String):
 	bg.color = Color(0, 0, 0, 0.7)
 	anim_layer.add_child(bg)
 	
+	# ✅ НОВОЕ: Иконка в зависимости от транспорта
 	var icon = Label.new()
-	icon.text = "🚶"
+	match transport_type:
+		movement_system.TransportType.WALK:
+			icon.text = "🚶"
+		_:
+			icon.text = "🚗"
 	icon.position = Vector2(320, 540)
 	icon.add_theme_font_size_override("font_size", 64)
 	anim_layer.add_child(icon)

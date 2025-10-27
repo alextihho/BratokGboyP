@@ -1,4 +1,4 @@
-# action_handler.gd - Обработчик действий локаций
+# action_handler.gd (ИСПРАВЛЕНО - СОБЫТИЯ + КВЕСТЫ РАБОТАЮТ!)
 extends Node
 
 var player_data: Dictionary
@@ -11,6 +11,7 @@ var police_system
 var bar_system
 var car_system
 var time_system
+var random_events  # ✅ ДОБАВЛЕНО
 
 func initialize(p_player_data: Dictionary):
 	player_data = p_player_data
@@ -25,8 +26,27 @@ func initialize(p_player_data: Dictionary):
 	bar_system = get_node_or_null("/root/BarSystem")
 	car_system = get_node_or_null("/root/CarSystem")
 	time_system = get_node_or_null("/root/TimeSystem")
+	random_events = get_node_or_null("/root/RandomEvents")  # ✅ ДОБАВЛЕНО
 	
 	print("🎯 ActionHandler инициализирован")
+
+# ✅ НОВАЯ ФУНКЦИЯ: Триггерит события при посещении локации
+func trigger_location_events(location_name: String, main_node: Node):
+	"""Вызывается при входе в локацию для проверки случайных событий"""
+	if not random_events:
+		print("⚠️ RandomEvents система недоступна!")
+		return
+	
+	# Даём небольшую задержку чтобы меню успело открыться
+	await main_node.get_tree().create_timer(0.5).timeout
+	
+	# Триггерим событие
+	var event_happened = random_events.trigger_random_event(location_name, player_data, main_node)
+	
+	if event_happened:
+		print("✅ Событие произошло в: " + location_name)
+	else:
+		print("   Событий не произошло")
 
 func handle_location_action(location_name: String, action_index: int, main_node: Node):
 	print("🎯 Обработка действия [%d] в локации: %s" % [action_index, location_name])
@@ -50,9 +70,9 @@ func handle_location_action(location_name: String, action_index: int, main_node:
 			handle_hospital_action(action_index, main_node)
 		"ФСБ":
 			handle_fsb_action(action_index, main_node)
-		"БАР":  # ✅ НОВОЕ
+		"БАР":
 			handle_bar_action(action_index, main_node)
-		"АВТОСАЛОН":  # ✅ НОВОЕ
+		"АВТОСАЛОН":
 			handle_car_dealership_action(action_index, main_node)
 		_:
 			main_node.show_message("❌ Действие для локации %s не определено!" % location_name)
@@ -128,8 +148,9 @@ func handle_garage_action(action_index: int, main_node: Node):
 				player_data["inventory"].append("Бита")
 				main_node.show_message("⚾ Куплена бита за 100 руб.")
 				
+				# ✅ ИСПРАВЛЕНО: Обновляем квест правильно
 				if quest_system:
-					quest_system.update_quest("buy_weapon", 1)
+					quest_system.progress_quest("buy_weapon", 1)
 				
 				main_node.update_ui()
 			else:
@@ -174,8 +195,9 @@ func handle_port_action(action_index: int, main_node: Node):
 				player_data["inventory"].append("ПМ")
 				main_node.show_message("🔫 Куплен ПМ за 500 руб.")
 				
+				# ✅ ИСПРАВЛЕНО: Обновляем квест правильно
 				if quest_system:
-					quest_system.update_quest("buy_weapon", 1)
+					quest_system.progress_quest("buy_weapon", 1)
 				
 				main_node.update_ui()
 			else:
@@ -214,7 +236,6 @@ func handle_hospital_action(action_index: int, main_node: Node):
 		0:  # Лечиться
 			if hospital_system:
 				main_node.close_location_menu()
-				# ✅ ИСПРАВЛЕНО: Передаем gang_members
 				hospital_system.show_hospital_menu(
 					main_node, 
 					main_node.player_data,
@@ -248,7 +269,7 @@ func handle_fsb_action(action_index: int, main_node: Node):
 		1:  # Уйти
 			main_node.close_location_menu()
 
-# ===== БАР ✨ НОВОЕ =====
+# ===== БАР =====
 func handle_bar_action(action_index: int, main_node: Node):
 	match action_index:
 		0:  # Отдохнуть
@@ -256,19 +277,19 @@ func handle_bar_action(action_index: int, main_node: Node):
 				main_node.close_location_menu()
 				bar_system.show_bar_menu(main_node, main_node.player_data, main_node.gang_members)
 			else:
-				main_node.show_message("❌ Система бара недоступна!\nДобавь BarSystem в autoloads")
+				main_node.show_message("❌ Система бара недоступна!")
 				main_node.close_location_menu()
 		1:  # Бухать с бандой
 			if bar_system:
 				main_node.close_location_menu()
 				bar_system.show_bar_menu(main_node, main_node.player_data, main_node.gang_members)
 			else:
-				main_node.show_message("❌ Система бара недоступна!\nДобавь BarSystem в autoloads")
+				main_node.show_message("❌ Система бара недоступна!")
 				main_node.close_location_menu()
 		2:  # Уйти
 			main_node.close_location_menu()
 
-# ===== АВТОСАЛОН ✨ НОВОЕ =====
+# ===== АВТОСАЛОН =====
 func handle_car_dealership_action(action_index: int, main_node: Node):
 	match action_index:
 		0:  # Выбор машины
@@ -276,14 +297,14 @@ func handle_car_dealership_action(action_index: int, main_node: Node):
 				main_node.close_location_menu()
 				car_system.show_car_dealership_menu(main_node, main_node.player_data)
 			else:
-				main_node.show_message("❌ Система машин недоступна!\nДобавь CarSystem в autoloads")
+				main_node.show_message("❌ Система машин недоступна!")
 				main_node.close_location_menu()
 		1:  # Починить машину
 			if car_system:
 				main_node.close_location_menu()
 				car_system.show_car_dealership_menu(main_node, main_node.player_data)
 			else:
-				main_node.show_message("❌ Система машин недоступна!\nДобавь CarSystem в autoloads")
+				main_node.show_message("❌ Система машин недоступна!")
 				main_node.close_location_menu()
 		2:  # Уйти
 			main_node.close_location_menu()

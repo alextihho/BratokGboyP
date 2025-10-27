@@ -1,13 +1,15 @@
-# car_system.gd - Система машин и автосалона
+# car_system.gd - ОБНОВЛЕНО (система мест и экипировки)
 extends Node
 
 signal car_purchased(car_name: String)
 signal car_repaired()
+signal driver_changed(member_index: int)
 
 var player_stats
 var time_system
+var log_system  # ✅ НОВОЕ
 
-# База данных машин
+# ✅ ОБНОВЛЕНО: База данных машин с количеством мест
 var cars_db = {
 	"vaz_2106": {
 		"name": "ВАЗ-2106",
@@ -15,7 +17,8 @@ var cars_db = {
 		"speed": 120,
 		"durability": 60,
 		"fuel_consumption": 8,
-		"description": "Классическая 'шестёрка' - надёжная рабочая лошадка",
+		"seats": 2,  # ✅ НОВОЕ: Водитель + 1 пассажир
+		"description": "Классическая 'шестёрка' - надёжная рабочая лошадка (2 места)",
 		"image": "res://assets/cars/vaz_2106.png"
 	},
 	"volga_3110": {
@@ -24,7 +27,8 @@ var cars_db = {
 		"speed": 140,
 		"durability": 80,
 		"fuel_consumption": 12,
-		"description": "Просторная и комфортная - идеальна для банды",
+		"seats": 4,  # ✅ НОВОЕ: Водитель + 3 пассажира
+		"description": "Просторная и комфортная - идеальна для банды (4 места)",
 		"image": "res://assets/cars/volga.png"
 	},
 	"bmw_e34": {
@@ -33,7 +37,8 @@ var cars_db = {
 		"speed": 180,
 		"durability": 90,
 		"fuel_consumption": 10,
-		"description": "Легенда 90-х - статус и мощь",
+		"seats": 6,  # ✅ НОВОЕ: Водитель + 5 пассажиров
+		"description": "Легенда 90-х - статус и мощь (6 мест)",
 		"image": "res://assets/cars/bmw_e34.png"
 	}
 }
@@ -41,7 +46,8 @@ var cars_db = {
 func _ready():
 	player_stats = get_node_or_null("/root/PlayerStats")
 	time_system = get_node_or_null("/root/TimeSystem")
-	print("🚗 Система машин загружена")
+	log_system = get_node_or_null("/root/LogSystem")  # ✅ НОВОЕ
+	print("🚗 Система машин загружена (с местами)")
 
 # Показать меню автосалона
 func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
@@ -50,7 +56,6 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	dealership_menu.name = "DealershipMenu"
 	main_node.add_child(dealership_menu)
 	
-	# Overlay
 	var overlay = ColorRect.new()
 	overlay.size = Vector2(720, 1280)
 	overlay.color = Color(0, 0, 0, 0.8)
@@ -75,7 +80,7 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	if player_data.get("car"):
 		var car = cars_db.get(player_data["car"])
 		if car:
-			current_car_text += car["name"]
+			current_car_text += car["name"] + " (%d мест)" % car["seats"]
 			current_car_text += " (состояние: %.0f%%)" % player_data.get("car_condition", 100)
 		else:
 			current_car_text += "Нет"
@@ -84,7 +89,7 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	
 	var current_car_label = Label.new()
 	current_car_label.text = current_car_text
-	current_car_label.position = Vector2(220, 160)
+	current_car_label.position = Vector2(160, 160)
 	current_car_label.add_theme_font_size_override("font_size", 16)
 	current_car_label.add_theme_color_override("font_color", Color(0.8, 0.8, 1.0, 1.0))
 	dealership_menu.add_child(current_car_label)
@@ -100,10 +105,6 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	var style_choose = StyleBoxFlat.new()
 	style_choose.bg_color = Color(0.2, 0.5, 0.8, 1.0)
 	choose_car_btn.add_theme_stylebox_override("normal", style_choose)
-	
-	var style_choose_hover = StyleBoxFlat.new()
-	style_choose_hover.bg_color = Color(0.3, 0.6, 0.9, 1.0)
-	choose_car_btn.add_theme_stylebox_override("hover", style_choose_hover)
 	
 	choose_car_btn.add_theme_font_size_override("font_size", 24)
 	choose_car_btn.pressed.connect(func():
@@ -128,10 +129,6 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 		style_repair.bg_color = Color(0.6, 0.4, 0.2, 1.0)
 	repair_btn.add_theme_stylebox_override("normal", style_repair)
 	
-	var style_repair_hover = StyleBoxFlat.new()
-	style_repair_hover.bg_color = Color(0.7, 0.5, 0.3, 1.0)
-	repair_btn.add_theme_stylebox_override("hover", style_repair_hover)
-	
 	repair_btn.add_theme_font_size_override("font_size", 24)
 	repair_btn.pressed.connect(func():
 		show_repair_menu(main_node, player_data, dealership_menu)
@@ -151,9 +148,11 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	info_text += "Здесь вы можете:\n"
 	info_text += "• Купить машину для быстрых передвижений\n"
 	info_text += "• Починить свою машину\n\n"
-	info_text += "Машина изнашивается при использовании.\n"
-	info_text += "Ремонт зависит от износа и харизмы.\n\n"
-	info_text += "💡 Совет: лучшая машина = больше престиж!"
+	info_text += "⚠️ ВАЖНО:\n"
+	info_text += "• После покупки назначьте водителя в меню\n"
+	info_text += "• Количество мест ограничивает банду в поездках\n"
+	info_text += "• Машина изнашивается при использовании\n\n"
+	info_text += "💡 Совет: лучшая машина = больше мест и престиж!"
 	
 	var info_label = Label.new()
 	info_label.text = info_text
@@ -175,7 +174,6 @@ func show_car_dealership_menu(main_node: Node, player_data: Dictionary):
 	close_btn.add_theme_font_size_override("font_size", 20)
 	close_btn.pressed.connect(func():
 		dealership_menu.queue_free()
-		main_node.show_location_menu("АВТОСАЛОН")
 	)
 	dealership_menu.add_child(close_btn)
 
@@ -239,33 +237,34 @@ func show_car_selection_menu(main_node: Node, player_data: Dictionary):
 		
 		# Информация о машине
 		var car_name = Label.new()
-		car_name.text = car["name"]
+		car_name.text = car["name"] + " (%d мест)" % car["seats"]  # ✅ Показываем места
 		car_name.position = Vector2(260, y_pos + 20)
-		car_name.add_theme_font_size_override("font_size", 22)
+		car_name.add_theme_font_size_override("font_size", 20)
 		car_name.add_theme_color_override("font_color", Color(1.0, 1.0, 0.5, 1.0))
 		selection_menu.add_child(car_name)
 		
 		var car_desc = Label.new()
 		car_desc.text = car["description"]
-		car_desc.position = Vector2(260, y_pos + 55)
-		car_desc.add_theme_font_size_override("font_size", 14)
+		car_desc.position = Vector2(260, y_pos + 50)
+		car_desc.add_theme_font_size_override("font_size", 13)
 		car_desc.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 1.0))
 		selection_menu.add_child(car_desc)
 		
 		var car_stats = Label.new()
-		car_stats.text = "⚡ Скорость: %d км/ч | 🛡️ Прочность: %d | ⛽ Расход: %d л/100км" % [
+		car_stats.text = "⚡ %d км/ч | 🛡️ %d | ⛽ %d л/100км | 👥 %d мест" % [
 			car["speed"],
 			car["durability"],
-			car["fuel_consumption"]
+			car["fuel_consumption"],
+			car["seats"]  # ✅ Показываем места в статах
 		]
-		car_stats.position = Vector2(260, y_pos + 85)
+		car_stats.position = Vector2(260, y_pos + 80)
 		car_stats.add_theme_font_size_override("font_size", 13)
 		car_stats.add_theme_color_override("font_color", Color(0.5, 1.0, 0.8, 1.0))
 		selection_menu.add_child(car_stats)
 		
 		var car_price = Label.new()
 		car_price.text = "💰 Цена: %d руб." % car["price"]
-		car_price.position = Vector2(260, y_pos + 115)
+		car_price.position = Vector2(260, y_pos + 110)
 		car_price.add_theme_font_size_override("font_size", 18)
 		car_price.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3, 1.0))
 		selection_menu.add_child(car_price)
@@ -330,8 +329,15 @@ func buy_car(main_node: Node, player_data: Dictionary, car_id: String, car: Dict
 	# Устанавливаем машину
 	player_data["car"] = car_id
 	player_data["car_condition"] = 100.0
+	player_data["car_equipped"] = false  # ✅ Нужно надеть в меню
+	player_data["current_driver"] = null  # ✅ Нужно назначить водителя
 	
-	main_node.show_message("🚗 Поздравляем с покупкой: %s!" % car["name"])
+	main_node.show_message("🚗 Поздравляем с покупкой: %s!\n⚠️ Назначьте водителя в меню!" % car["name"])
+	
+	# ✅ НОВОЕ: Логируем покупку
+	if log_system:
+		log_system.add_money_log("🚗 Куплена машина: %s (-% dр)" % [car["name"], car["price"]])
+	
 	main_node.update_ui()
 	
 	car_purchased.emit(car["name"])
@@ -340,7 +346,7 @@ func buy_car(main_node: Node, player_data: Dictionary, car_id: String, car: Dict
 	await main_node.get_tree().create_timer(1.0).timeout
 	show_car_dealership_menu(main_node, player_data)
 
-# Меню ремонта
+# Меню ремонта (без изменений)
 func show_repair_menu(main_node: Node, player_data: Dictionary, dealership_menu: CanvasLayer):
 	if not player_data.get("car"):
 		main_node.show_message("❌ У вас нет машины!")
@@ -355,18 +361,16 @@ func show_repair_menu(main_node: Node, player_data: Dictionary, dealership_menu:
 	if not car:
 		return
 	
-	# Расчёт стоимости ремонта
 	var wear = 100 - condition
-	var base_cost = int(car["price"] * 0.01 * wear)  # 1% от цены машины за каждый % износа
+	var base_cost = int(car["price"] * 0.01 * wear)
 	
-	# Скидка от харизмы
 	var charisma_discount = 0
 	if player_stats:
-		var charisma = player_stats.get_stat("CHA")
-		charisma_discount = charisma * 2  # 2% скидки за уровень харизмы
+		var charisma = player_stats.get_stat("Харизма")
+		charisma_discount = charisma * 2
 	
 	var repair_cost = int(base_cost * (100 - charisma_discount) / 100.0)
-	repair_cost = max(50, repair_cost)  # Минимум 50 руб.
+	repair_cost = max(50, repair_cost)
 	
 	# Создаём диалог подтверждения
 	var confirm_layer = CanvasLayer.new()
@@ -410,7 +414,6 @@ func show_repair_menu(main_node: Node, player_data: Dictionary, dealership_menu:
 	info_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9, 1.0))
 	confirm_layer.add_child(info_label)
 	
-	# Кнопка ПОЧИНИТЬ
 	var repair_btn = Button.new()
 	repair_btn.custom_minimum_size = Vector2(250, 60)
 	repair_btn.position = Vector2(100, 730)
@@ -430,7 +433,6 @@ func show_repair_menu(main_node: Node, player_data: Dictionary, dealership_menu:
 	)
 	confirm_layer.add_child(repair_btn)
 	
-	# Кнопка ОТМЕНА
 	var cancel_btn = Button.new()
 	cancel_btn.custom_minimum_size = Vector2(250, 60)
 	cancel_btn.position = Vector2(370, 730)
@@ -452,17 +454,18 @@ func repair_car(main_node: Node, player_data: Dictionary, cost: int, confirm_lay
 		main_node.show_message("❌ Недостаточно денег!")
 		return
 	
-	# Списываем деньги
 	player_data["balance"] -= cost
-	
-	# Восстанавливаем состояние
 	player_data["car_condition"] = 100.0
 	
-	# Добавляем время
 	if time_system:
 		time_system.add_hours(randi_range(1, 3))
 	
 	main_node.show_message("🔧 Машина отремонтирована!\n💰 Потрачено: %d руб." % cost)
+	
+	# ✅ НОВОЕ: Логируем ремонт
+	if log_system:
+		log_system.add_money_log("🔧 Ремонт машины (-%dр)" % cost)
+	
 	main_node.update_ui()
 	
 	car_repaired.emit()
@@ -481,8 +484,14 @@ func use_car(player_data: Dictionary, distance: float = 10.0):
 	if not car:
 		return
 	
-	# Износ зависит от расстояния и прочности машины
 	var wear_rate = 100.0 / car["durability"]
 	var wear = wear_rate * (distance / 10.0)
 	
 	player_data["car_condition"] = max(0, player_data.get("car_condition", 100) - wear)
+
+# ✅ НОВОЕ: Получить количество мест в машине
+func get_car_seats(car_id: String) -> int:
+	var car = cars_db.get(car_id)
+	if car and car.has("seats"):
+		return car["seats"]
+	return 1
