@@ -61,6 +61,14 @@ func add_minutes(minutes: int):
 	if old_day != current_time["day"]:
 		day_changed.emit(current_time["day"], current_time["month"], current_time["year"])
 
+# ✅ НОВОЕ: Добавить часы
+func add_hours(hours: int):
+	add_minutes(hours * 60)
+
+# ✅ НОВОЕ: Добавить дни
+func add_days(days: int):
+	add_minutes(days * 24 * 60)
+
 # Проверка смены периода дня
 func check_time_of_day_change(old_hour: int, new_hour: int):
 	var old_period = get_time_of_day(old_hour)
