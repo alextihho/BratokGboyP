@@ -63,12 +63,12 @@ func create_top_panel(parent_node: Node):
 	# При клике - открываем инвентарь
 	avatar_btn.pressed.connect(func():
 		print("🎒 Клик по аватару - открываем инвентарь")
-		# Открываем инвентарь через menu_manager
-		var menu_mgr = parent_node.get_node_or_null("MenuManager")
-		if menu_mgr and menu_mgr.has_method("show_inventory_menu"):
-			menu_mgr.show_inventory_menu(0)  # Главный игрок (индекс 0)
+		# Открываем инвентарь через InventoryManager
+		var inv_mgr = get_node_or_null("/root/InventoryManager")
+		if inv_mgr and inv_mgr.has_method("show_inventory_for_member"):
+			inv_mgr.show_inventory_for_member(parent_node, 0, parent_node.gang_members, parent_node.player_data)
 		else:
-			print("⚠️ MenuManager не найден!")
+			print("⚠️ InventoryManager не найден!")
 	)
 	
 	ui_layer.add_child(avatar_btn)
