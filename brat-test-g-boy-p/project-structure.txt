@@ -1,0 +1,230 @@
+Folder PATH listing for volume OS
+Volume serial number is 20B3-B96F
+C:.
+¦   .editorconfig
+¦   .gitattributes
+¦   .gitignore
+¦   icon.svg
+¦   icon.svg.import
+¦   MainMap.tscn
+¦   node_2d.tscn
+¦   project-structure.txt
+¦   project.godot
+¦   
++---.godot
+¦   ¦   .gdignore
+¦   ¦   global_script_class_cache.cfg
+¦   ¦   scene_groups_cache.cfg
+¦   ¦   uid_cache.bin
+¦   ¦   
+¦   +---editor
+¦   ¦       editor_layout.cfg
+¦   ¦       editor_script_doc_cache.res-folding-a7de57390d6e786984ca20c70a831128.cfg
+¦   ¦       filesystem_cache10
+¦   ¦       MainMap.tscn-folding-4f19fb847a8ec7c011bb7dee46f6c0f7.cfg
+¦   ¦       project_metadata.cfg
+¦   ¦       script_editor_cache.cfg
+¦   ¦       
+¦   +---imported
+¦   ¦       avatar.png-6c2bdad2df05761ab03c60a81a406b00.ctex
+¦   ¦       avatar.png-6c2bdad2df05761ab03c60a81a406b00.md5
+¦   ¦       avatar.png-e93fa415d3a8a4d1df83c080d021cde5.ctex
+¦   ¦       avatar.png-e93fa415d3a8a4d1df83c080d021cde5.md5
+¦   ¦       icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex
+¦   ¦       icon.svg-218a8f2b3041327d8a5756f3a245f83b.md5
+¦   ¦       tver_map_bg.png-b2d89f5ac7d1e31846d9ea703320aaf3.ctex
+¦   ¦       tver_map_bg.png-b2d89f5ac7d1e31846d9ea703320aaf3.md5
+¦   ¦       tver_map_bg1.png-38f8afe1c1e15e2cb277acea6df306f7.ctex
+¦   ¦       tver_map_bg1.png-38f8afe1c1e15e2cb277acea6df306f7.md5
+¦   ¦       
+¦   +---shader_cache
+¦       +---CanvasOcclusionShaderGLES3
+¦       ¦   +---16f78ca868b0eccafa341f6df9a35e73911f3f0a7b650b60952603785fb43bdb
+¦       +---CanvasSdfShaderGLES3
+¦       ¦   +---f89983e1b7d688c90c39eca58b20f04b3e841a074d7f2fab5a447953dfac710b
+¦       +---CanvasShaderGLES3
+¦       ¦   +---4421d228da25487f03e45f5760ec45761c8cd7a60c75f747e39742055ab6d67b
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           
+¦       +---CopyShaderGLES3
+¦       ¦   +---96d6a0c1db34f26cc29fb1208d129f7ab72e35d7c3d6910643e09aea8b23bc50
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           
+¦       +---CubemapFilterShaderGLES3
+¦       ¦   +---aa35b9f69ffd6d42aee495910b9990494a2be81ef23d750609bb25dec0458bb8
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           
+¦       +---FeedShaderGLES3
+¦       ¦   +---645a2dd9e00fd492e3d8949ac7ffef432ef261accdfa9447904729fc90a723d5
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           
+¦       +---GlowShaderGLES3
+¦       ¦   +---aa2f7b4487a27f99d748c0c4041b7a91b42cd95098eb66dbca65bfadc94b246e
+¦       +---ParticlesCopyShaderGLES3
+¦       ¦   +---51fd795bf9ffa89bd7de47ec9f63105c6def318d968397d339ecef9c889a7f4e
+¦       +---ParticlesShaderGLES3
+¦       ¦   +---f2dbe5bd25449f1e82a1900a1b05aae12b6ab292aee9f19508bd7efc7c6e0dbf
+¦       +---PostShaderGLES3
+¦       ¦   +---9b1f081ef34bd207b350c033fc2381ca8750c614b8aec69337383ac6b88781ea
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           
+¦       +---SceneShaderGLES3
+¦       ¦   +---9e0fdc78e0b70e0664f7faf889bf022528c373bead848352e8fcde78448bd177
+¦       ¦           0c9689a7dae2d011729a1e2cf29c71ecb4a7e8bb.cache
+¦       ¦           6bb7c9a2fd1c4a8fa77cb96555b9b4a720209981.cache
+¦       ¦           e4803059b59d245bee29da2f87c302ecb830c09e.cache
+¦       ¦           
+¦       +---SkeletonShaderGLES3
+¦       ¦   +---44b9d0f2561bcf96555c6f13c84c8d6c43e053cce971d45044692b8495183409
+¦       +---SkyShaderGLES3
+¦           +---bea900b14568d0d7307bb1552bf49eab5751316222491f5842664f6d5cf14679
+¦                   5a3d531808fb7d2e07dab8d96701aaa581a6ad95.cache
+¦                   
++---assets
+¦   ¦   tver_map_bg.png
+¦   ¦   tver_map_bg.png.import
+¦   ¦   tver_map_bg1.png
+¦   ¦   tver_map_bg1.png.import
+¦   ¦   
+¦   +---backgrounds
+¦   +---characters
+¦   +---items
+¦   ¦   +---clothes
+¦   ¦   +---misc
+¦   ¦   +---weapons
+¦   +---sprites
+¦   ¦       avatar.png
+¦   ¦       avatar.png.import
+¦   ¦       
+¦   +---ui
+¦   ¦       avatar.png
+¦   ¦       avatar.png.import
+¦   ¦       
+¦   +---vehicles
++---scenes
+¦       BattleUI.tscn
+¦       MainMap.tscn
+¦       MainMap.tscn2505364997.tmp
+¦       MainMap.tscn2532963723.tmp
+¦       MainMap.tscn2542852278.tmp
+¦       MainMap.tscn2741280863.tmp
+¦       MainMap.tscn2778399995.tmp
+¦       MainMap.tscn531085980.tmp
+¦       MainMap.tscn5385105008.tmp
+¦       MainMap.tscn5398310373.tmp
+¦       MainMap.tscn724489929.tmp
+¦       MainMap.tscn8142516336.tmp
+¦       
++---scripts
+¦   ¦   camera.gd
+¦   ¦   camera.gd.uid
+¦   ¦   main.gd
+¦   ¦   main.gd.uid
+¦   ¦   
+¦   +---battle
+¦   ¦       battle.gd
+¦   ¦       battle.gd.uid
+¦   ¦       battle_avatars.gd
+¦   ¦       battle_avatars.gd.uid
+¦   ¦       battle_enemy.gd
+¦   ¦       battle_enemy.gd.uid
+¦   ¦       battle_logic.gd
+¦   ¦       battle_logic.gd.uid
+¦   ¦       battle_logic_full.gd
+¦   ¦       battle_logic_full.gd.uid
+¦   ¦       battle_ui.gd
+¦   ¦       battle_ui.gd.uid
+¦   ¦       battle_ui_full.gd
+¦   ¦       battle_ui_full.gd.uid
+¦   ¦       
+¦   +---core
+¦   ¦       game_initializer.gd
+¦   ¦       game_initializer.gd.uid
+¦   ¦       input_handler.gd
+¦   ¦       input_handler.gd.uid
+¦   ¦       
+¦   +---data
+¦   ¦       items_db.gd
+¦   ¦       items_db.gd.uid
+¦   ¦       
+¦   +---managers
+¦   ¦       action_handler.gd
+¦   ¦       action_handler.gd.uid
+¦   ¦       battle_manager.gd
+¦   ¦       battle_manager.gd.uid
+¦   ¦       clicker_system.gd
+¦   ¦       clicker_system.gd.uid
+¦   ¦       districts_menu_manager.gd
+¦   ¦       districts_menu_manager.gd.uid
+¦   ¦       gang_manager.gd
+¦   ¦       gang_manager.gd.uid
+¦   ¦       grid_movement_manager.gd
+¦   ¦       grid_movement_manager.gd.uid
+¦   ¦       inventory_manager.gd
+¦   ¦       inventory_manager.gd.uid
+¦   ¦       map_manager.gd
+¦   ¦       map_manager.gd.uid
+¦   ¦       menu_manager.gd
+¦   ¦       menu_manager.gd.uid
+¦   ¦       save_manager.gd
+¦   ¦       save_manager.gd.uid
+¦   ¦       ui_controller.gd
+¦   ¦       ui_controller.gd.uid
+¦   ¦       
+¦   +---systems
+¦   ¦       building_system.gd
+¦   ¦       building_system.gd.uid
+¦   ¦       districts_system.gd
+¦   ¦       districts_system.gd.uid
+¦   ¦       game_time.gd
+¦   ¦       game_time.gd.uid
+¦   ¦       gang_member_generator.gd
+¦   ¦       gang_member_generator.gd.uid
+¦   ¦       grid_system.gd
+¦   ¦       grid_system.gd.uid
+¦   ¦       hospital_system.gd
+¦   ¦       hospital_system.gd.uid
+¦   ¦       locations.gd
+¦   ¦       locations.gd.uid
+¦   ¦       movement_system.gd
+¦   ¦       movement_system.gd.uid
+¦   ¦       passive_income.gd
+¦   ¦       passive_income.gd.uid
+¦   ¦       player_data.gd
+¦   ¦       player_data.gd.uid
+¦   ¦       player_stats.gd
+¦   ¦       player_stats.gd.uid
+¦   ¦       police_system.gd
+¦   ¦       police_system.gd.uid
+¦   ¦       quest_system.gd
+¦   ¦       quest_system.gd.uid
+¦   ¦       random_events.gd
+¦   ¦       random_events.gd.uid
+¦   ¦       simple_jobs.gd
+¦   ¦       simple_jobs.gd.uid
+¦   ¦       time_system.gd
+¦   ¦       time_system.gd.uid
+¦   ¦       ui_manager.gd
+¦   ¦       ui_manager.gd.uid
+¦   ¦       
+¦   +---ui
+¦           battle_ui_helper.gd
+¦           battle_ui_helper.gd.uid
+¦           bottom_menu.gd
+¦           bottom_menu.gd.uid
+¦           building_menu.gd
+¦           building_menu.gd.uid
+¦           districts_menu.gd
+¦           districts_menu.gd.uid
+¦           district_details.gd
+¦           district_details.gd.uid
+¦           gang_menu.gd
+¦           gang_menu.gd.uid
+¦           inventory_menu.gd
+¦           inventory_menu.gd.uid
+¦           item_popup.gd
+¦           item_popup.gd.uid
+¦           top_panel.gd
+¦           top_panel.gd.uid
+¦           
++---ui
