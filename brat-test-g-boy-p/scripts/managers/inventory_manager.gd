@@ -3,6 +3,16 @@ extends Node
 
 # ✅ ГЛАВНАЯ ФУНКЦИЯ для открытия инвентаря члена банды
 func show_inventory_for_member(main_node: Node, member_index: int, gang_members: Array, player_data: Dictionary):
+	# ✅ ПРОВЕРКА: Инициализируем все необходимые поля
+	if not player_data.has("equipment"):
+		player_data["equipment"] = {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null}
+
+	if not player_data.has("inventory"):
+		player_data["inventory"] = []
+
+	if not player_data.has("pockets"):
+		player_data["pockets"] = [null, null, null]
+
 	# Создаем экземпляр меню инвентаря
 	var inv_menu_script = load("res://scripts/ui/inventory_menu.gd")
 	var inv_menu = inv_menu_script.new()
@@ -77,7 +87,7 @@ func show_item_popup(main_node: Node, item_name: String, from_pocket: bool, pock
 		popup.add_child(use_btn)
 		btn_y += 70
 
-	if item_type in ["weapon", "armor", "helmet", "gadget"]:
+	if item_type in ["weapon", "armor", "helmet", "gadget", "melee", "ranged"]:
 		var equip_btn = Button.new()
 		equip_btn.custom_minimum_size = Vector2(540, 50)
 		equip_btn.position = Vector2(90, btn_y)
@@ -119,9 +129,14 @@ func use_item(item_name: String, from_pocket: bool, pocket_index: int, player_da
 	var items_db = get_node("/root/ItemsDB")
 	var item_data = items_db.get_item(item_name)
 
-	if item_data.get("heal", 0) > 0:
-		player_data["health"] = min(100, player_data["health"] + item_data["heal"])
-		main_node.show_message("❤️ Восстановлено " + str(item_data["heal"]) + " HP")
+	if not item_data:
+		return
+
+	# ✅ ИСПРАВЛЕНО: Правильная структура данных из items_db
+	if item_data.get("effect", "") == "heal":
+		var heal_value = item_data.get("value", 0)
+		player_data["health"] = min(100, player_data["health"] + heal_value)
+		main_node.show_message("❤️ Восстановлено " + str(heal_value) + " HP")
 
 	# Удаляем предмет
 	if from_pocket:
@@ -134,11 +149,18 @@ func use_item(item_name: String, from_pocket: bool, pocket_index: int, player_da
 func equip_item(item_name: String, from_pocket: bool, pocket_index: int, player_data: Dictionary, main_node: Node):
 	var items_db = get_node("/root/ItemsDB")
 	var item_data = items_db.get_item(item_name)
+
+	if not item_data:
+		return
+
 	var item_type = item_data.get("type", "")
 
+	# ✅ ИСПРАВЛЕНО: Правильная карта слотов
 	var slot_map = {
 		"helmet": "helmet",
 		"armor": "armor",
+		"melee": "melee",
+		"ranged": "ranged",
 		"weapon": "melee",
 		"gadget": "gadget"
 	}
@@ -162,6 +184,12 @@ func equip_item(item_name: String, from_pocket: bool, pocket_index: int, player_
 		player_data["inventory"].erase(item_name)
 
 	main_node.show_message("✅ Экипировано: " + item_name)
+
+	# ✅ ВАЖНО: Обновляем статы игрока если есть метод
+	var player_stats = get_node_or_null("/root/PlayerStats")
+	if player_stats and player_stats.has_method("recalculate_equipment_bonuses"):
+		player_stats.recalculate_equipment_bonuses(player_data)
+
 	main_node.update_ui()
 
 func move_to_pocket(item_name: String, player_data: Dictionary, main_node: Node):
