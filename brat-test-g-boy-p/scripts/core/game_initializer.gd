@@ -1,4 +1,4 @@
-# scripts/core/game_initializer.gd
+# scripts/core/game_initializer.gd (ОБНОВЛЕНО - добавлены новые системы)
 extends Node
 
 # ===== ЗАГРУЗКА АВТОЛОАД СИСТЕМ =====
@@ -15,10 +15,28 @@ func load_autoload_systems(game_controller):
 	game_controller.simple_jobs = get_node_or_null("/root/SimpleJobs")
 	game_controller.hospital_system = get_node_or_null("/root/HospitalSystem")
 	game_controller.time_system = get_node_or_null("/root/TimeSystem")
-	# ✅ bar_system и car_system НЕ присваиваем в game_controller
-	# Они будут доступны через get_node("/root/BarSystem") в action_handler
+	
+	# ✅ НОВОЕ: Загружаем новые системы
+	game_controller.log_system = get_node_or_null("/root/LogSystem")
+	game_controller.bar_system = get_node_or_null("/root/BarSystem")
+	game_controller.car_system = get_node_or_null("/root/CarSystem")
 	
 	print("✅ Автолоад системы загружены")
+	
+	if game_controller.log_system:
+		print("✅ LogSystem доступен")
+	else:
+		print("⚠️ LogSystem не найден!")
+	
+	if game_controller.bar_system:
+		print("✅ BarSystem доступен")
+	else:
+		print("⚠️ BarSystem не найден!")
+	
+	if game_controller.car_system:
+		print("✅ CarSystem доступен")
+	else:
+		print("⚠️ CarSystem не найден!")
 
 # ===== НАСТРОЙКА СЕТКИ И ДВИЖЕНИЯ =====
 func setup_grid_and_movement(game_controller):
@@ -48,61 +66,119 @@ func setup_grid_and_movement(game_controller):
 
 # ===== ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРОВ =====
 func initialize_managers(game_controller):
+	"""Инициализирует менеджеры"""
+	print("🔧 initialize_managers старт")
+	
 	# Map Manager
-	game_controller.map_manager = preload("res://scripts/managers/map_manager.gd").new()
-	game_controller.map_manager.name = "MapManager"
-	game_controller.add_child(game_controller.map_manager)
-	game_controller.map_manager.initialize(game_controller, game_controller.locations)
-	game_controller.map_manager.location_clicked.connect(game_controller.on_location_clicked)
+	var map_manager_script = preload("res://scripts/managers/map_manager.gd")
+	if map_manager_script:
+		var map_manager = map_manager_script.new()
+		if map_manager:
+			map_manager.name = "MapManager"
+			game_controller.add_child(map_manager)
+			map_manager.initialize(game_controller, game_controller.locations)
+			map_manager.location_clicked.connect(game_controller.on_location_clicked)
+			print("✅ MapManager создан")
+		else:
+			print("❌ MapManager.new() returned Nil!")
+	else:
+		print("❌ preload map_manager.gd failed!")
 	
 	# UI Controller
-	game_controller.ui_controller = preload("res://scripts/managers/ui_controller.gd").new()
-	game_controller.ui_controller.name = "UIController"
-	game_controller.add_child(game_controller.ui_controller)
-	game_controller.ui_controller.initialize(game_controller, game_controller.player_data)
-	var ui_layer = game_controller.ui_controller.get_ui_layer()
+	var ui_script = load("res://scripts/managers/ui_controller.gd")
+	if ui_script:
+		game_controller.ui_controller = ui_script.new()
+		if game_controller.ui_controller:
+			game_controller.ui_controller.name = "UIController"
+			game_controller.add_child(game_controller.ui_controller)
+			game_controller.ui_controller.initialize(game_controller, game_controller.player_data)
+			print("✅ UIController создан")
+		else:
+			print("❌ ui_controller.new() returned Nil!")
+	else:
+		print("❌ load ui_controller.gd failed!")
+	
+	var ui_layer = game_controller.ui_controller.get_ui_layer() if game_controller.ui_controller else null
 	if ui_layer:
 		ui_layer.layer = 50
+		print("✅ UI Layer layer=50")
+	else:
+		print("⚠️ get_ui_layer() returned null")
 	
 	# Action Handler
-	game_controller.action_handler = preload("res://scripts/managers/action_handler.gd").new()
-	game_controller.action_handler.name = "ActionHandler"
-	game_controller.add_child(game_controller.action_handler)
-	game_controller.action_handler.initialize(game_controller.player_data)
+	var action_handler_script = preload("res://scripts/managers/action_handler.gd")
+	if action_handler_script:
+		game_controller.action_handler = action_handler_script.new()
+		if game_controller.action_handler:
+			game_controller.action_handler.name = "ActionHandler"
+			game_controller.add_child(game_controller.action_handler)
+			# ✅ ИСПРАВЛЕНО: Передаём только player_data
+			game_controller.action_handler.initialize(game_controller.player_data)
+			print("✅ ActionHandler создан")
+		else:
+			print("❌ ActionHandler.new() returned Nil!")
+	else:
+		print("❌ preload action_handler.gd failed!")
 	
 	# Menu Manager
-	game_controller.menu_manager = preload("res://scripts/managers/menu_manager.gd").new()
-	game_controller.menu_manager.name = "MenuManager"
-	game_controller.add_child(game_controller.menu_manager)
-	game_controller.menu_manager.initialize(game_controller.player_data, game_controller.gang_members)
+	var menu_manager_script = load("res://scripts/managers/menu_manager.gd")
+	if menu_manager_script:
+		game_controller.menu_manager = menu_manager_script.new()
+		if game_controller.menu_manager:
+			game_controller.menu_manager.name = "MenuManager"
+			game_controller.add_child(game_controller.menu_manager)
+			print("✅ MenuManager создан")
 	
 	# Clicker System
-	game_controller.clicker_system = preload("res://scripts/managers/clicker_system.gd").new()
-	game_controller.clicker_system.name = "ClickerSystem"
-	game_controller.add_child(game_controller.clicker_system)
-	game_controller.clicker_system.initialize(game_controller.ui_controller.get_ui_layer(), game_controller.player_data)
+	var clicker_script = load("res://scripts/managers/clicker_system.gd")
+	if clicker_script:
+		game_controller.clicker_system = clicker_script.new()
+		if game_controller.clicker_system:
+			game_controller.clicker_system.name = "ClickerSystem"
+			game_controller.add_child(game_controller.clicker_system)
+			# ✅ ИСПРАВЛЕНО: Передаём ui_layer и player_data
+			var clicker_ui_layer = game_controller.ui_controller.get_ui_layer() if game_controller.ui_controller else null
+			if clicker_ui_layer:
+				game_controller.clicker_system.initialize(clicker_ui_layer, game_controller.player_data)
+				print("✅ ClickerSystem создан")
+			else:
+				print("⚠️ ClickerSystem не инициализирован - нет ui_layer")
 	
 	# Districts Menu Manager
-	game_controller.districts_menu_manager = preload("res://scripts/managers/districts_menu_manager.gd").new()
-	game_controller.districts_menu_manager.name = "DistrictsMenuManager"
-	game_controller.add_child(game_controller.districts_menu_manager)
-	game_controller.districts_menu_manager.initialize()
+	var districts_menu_script = load("res://scripts/managers/districts_menu_manager.gd")
+	if districts_menu_script:
+		game_controller.districts_menu_manager = districts_menu_script.new()
+		if game_controller.districts_menu_manager:
+			game_controller.districts_menu_manager.name = "DistrictsMenuManager"
+			game_controller.add_child(game_controller.districts_menu_manager)
+			game_controller.districts_menu_manager.initialize() # ✅ ФИКС: Инициализируем менеджер
+			print("✅ DistrictsMenuManager создан")
 	
 	# Battle Manager
-	game_controller.battle_manager = preload("res://scripts/managers/battle_manager.gd").new()
-	game_controller.battle_manager.name = "BattleManager"
-	game_controller.add_child(game_controller.battle_manager)
-	game_controller.battle_manager.initialize()
+	var battle_manager_script = load("res://scripts/managers/battle_manager.gd")
+	if battle_manager_script:
+		game_controller.battle_manager = battle_manager_script.new()
+		if game_controller.battle_manager:
+			game_controller.battle_manager.name = "BattleManager"
+			game_controller.add_child(game_controller.battle_manager)
+			game_controller.battle_manager.initialize(game_controller)
+			print("✅ BattleManager создан")
 	
 	# Grid Movement Manager
 	var grid_movement_script = load("res://scripts/managers/grid_movement_manager.gd")
 	if grid_movement_script:
 		game_controller.grid_movement_manager = grid_movement_script.new()
-		game_controller.grid_movement_manager.name = "GridMovementManager"
-		game_controller.add_child(game_controller.grid_movement_manager)
-		game_controller.grid_movement_manager.initialize(game_controller, game_controller.grid_system, game_controller.movement_system)
+		if game_controller.grid_movement_manager:
+			game_controller.grid_movement_manager.name = "GridMovementManager"
+			game_controller.add_child(game_controller.grid_movement_manager)
+			game_controller.grid_movement_manager.initialize(
+				game_controller,
+				game_controller.grid_system,
+				game_controller.movement_system
+			)
+			print("✅ GridMovementManager создан")
 	
-	print("✅ Менеджеры инициализированы")
+	print("🔧 initialize_managers конец")
 
 # ===== НАСТРОЙКА ИГРОВЫХ СИСТЕМ =====
 func setup_game_systems(game_controller):

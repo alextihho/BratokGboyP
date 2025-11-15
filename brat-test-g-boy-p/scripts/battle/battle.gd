@@ -2,7 +2,7 @@
 extends CanvasLayer
 
 signal battle_ended(victory: bool)
-var log_system
+
 # Модули
 var battle_logic
 var battle_avatars
@@ -29,7 +29,7 @@ var enemy_templates = {
 func _ready():
 	layer = 200
 	player_stats = get_node("/root/PlayerStats")
-	log_system = get_node_or_null("/root/LogSystem")
+	
 	# Создаём модули
 	battle_logic = Node.new()
 	battle_logic.set_script(load("res://scripts/battle/battle_logic_full.gd"))
@@ -394,7 +394,6 @@ func on_run():
 
 # ========== ХОД ВРАГА ==========
 func execute_enemy_turn():
-	print("⚔️ Выполняется ход врага...")
 	var actions = battle_logic.enemy_turn()
 	
 	for action in actions:
@@ -415,14 +414,7 @@ func execute_enemy_turn():
 		update_teams_info()
 		await get_tree().create_timer(0.5).timeout
 	
-	# ✅ ИСПРАВЛЕНО: После завершения хода врага проверяем состояние боя
-	# battle_logic уже установил turn = "player" и вызвал сигнал,
-	# но нам нужно дождаться завершения анимаций
-	print("✅ Ход врага завершен, ход переходит к игроку")
-	
-	# Обновляем интерфейс для хода игрока
-	lock_buttons(false)
-	update_turn_info()
+	# ✅ УДАЛЕНО: check_battle_end() теперь вызывается в battle_logic и испускает сигнал
 
 # ========== ПОБЕДА И ПОРАЖЕНИЕ ==========
 func win_battle():
@@ -430,54 +422,36 @@ func win_battle():
 	print("🏆 WIN_BATTLE() ВЫЗВАНА!")
 	print("==================================================")
 	
-	add_to_log("🏆 ПОБЕДА!")
+	add_to_log("✅ ПОБЕДА!")
 	
 	# Блокируем все кнопки СРАЗУ
 	lock_buttons(true)
 	print("✅ Кнопки заблокированы")
 	
-	# ✅ Обновляем HP членов банды в массиве
-	if gang_members.size() > 0:
-		for player in battle_logic.player_team:
-			if player.get("is_gang_member", false):
-				var idx = player.get("gang_member_index", -1)
-				if idx >= 0 and idx < gang_members.size():
-					gang_members[idx]["hp"] = player["hp"]
-					gang_members[idx]["health"] = player["hp"]
-					print("💾 Обновлён HP члена банды [%d] %s: %d" % [
-						idx, 
-						gang_members[idx].get("name", "???"), 
-						player["hp"]
-					])
-	
-	# Подсчитываем награду
 	var total_reward = 0
-	var total_rep = 0
+	var alive_members = 0
 	
+	# Считаем награду за врагов
 	for enemy in battle_logic.enemy_team:
-		if enemy.has("reward"):
-			total_reward += enemy["reward"]
-			total_rep += int(enemy["reward"] / 10.0)
+		total_reward += enemy.get("reward", 0)
 	
-	add_to_log("💰 Награда: +" + str(total_reward) + " руб.")
-	add_to_log("⭐ Репутация: +" + str(total_rep))
+	# Считаем выживших членов банды для бонуса
+	for player in battle_logic.player_team:
+		if player.get("alive", false) and player.get("is_gang_member", false):
+			alive_members += 1
 	
-	# ✅ НОВОЕ: Логируем победу в системе логов
-	if log_system:
-		log_system.add_combat_log("⚔️ ПОБЕДА! 💰 +" + str(total_reward) + "р, ⭐ +" + str(total_rep))
-	
-	# Обновляем данные игрока
-	if player_data:
-		player_data["balance"] += total_reward
-		player_data["reputation"] += total_rep
+	var main_node = get_parent()
+	if main_node and "player_data" in main_node:
+		main_node.player_data["balance"] += total_reward
+		main_node.player_data["reputation"] += 5 + battle_logic.enemy_team.size()
 		
-		# ✅ Обновляем HP главного игрока
-		for player in battle_logic.player_team:
-			if player.get("is_main_player", false):
-				player_data["health"] = player["hp"]
-				print("💾 Обновлено HP игрока: %d" % player["hp"])
-				break
+		# Бонус за выживших членов банды
+		if alive_members > 0:
+			var bonus = alive_members * 20
+			main_node.player_data["balance"] += bonus
+			add_to_log("👥 Бонус за выживших: +%d руб." % bonus)
 	
+	add_to_log("💰 +%d руб., +%d репутации" % [total_reward, 5 + battle_logic.enemy_team.size()])
 	add_to_log("⏰ Окно закроется через 2 секунды...")
 	
 	# Испускаем сигнал СРАЗУ
@@ -514,6 +488,17 @@ func win_battle():
 	close_timer.start()
 	print("⏰ Таймер ЗАПУЩЕН! (2 секунды)")
 	print("⏰ Ждём срабатывания...")
+	
+	# ✅ МЕТОД 2: Резервный - call_deferred через SceneTree
+	print("🔄 Создаём резервный таймер через get_tree()...")
+	get_tree().create_timer(2.5).timeout.connect(func():
+		print("🔄 РЕЗЕРВНЫЙ ТАЙМЕР сработал!")
+		if is_instance_valid(self) and get_parent() != null:
+			print("⚠️ Основной таймер не сработал! Принудительное закрытие...")
+			call_deferred("queue_free")
+	)
+	print("✅ Резервный таймер создан!")
+	print("==================================================")
 
 func lose_battle():
 	print("==================================================")
@@ -537,10 +522,6 @@ func lose_battle():
 		add_to_log("🏥 Главный герой тяжело ранен...")
 	else:
 		add_to_log("🏃 Вы чудом спаслись...")
-	
-	# ✅ НОВОЕ: Логируем поражение
-	if log_system:
-		log_system.add_combat_log("💀 ПОРАЖЕНИЕ в бою")
 	
 	add_to_log("⏰ Окно закроется через 2 секунды...")
 	
@@ -578,6 +559,17 @@ func lose_battle():
 	close_timer.start()
 	print("⏰ Таймер ЗАПУЩЕН! (2 секунды)")
 	print("⏰ Ждём срабатывания...")
+	
+	# ✅ МЕТОД 2: Резервный - call_deferred через SceneTree
+	print("🔄 Создаём резервный таймер через get_tree()...")
+	get_tree().create_timer(2.5).timeout.connect(func():
+		print("🔄 РЕЗЕРВНЫЙ ТАЙМЕР сработал!")
+		if is_instance_valid(self) and get_parent() != null:
+			print("⚠️ Основной таймер не сработал! Принудительное закрытие...")
+			call_deferred("queue_free")
+	)
+	print("✅ Резервный таймер создан!")
+	print("==================================================")
 
 # ========== ОБРАБОТКА СИГНАЛОВ ==========
 func _on_turn_completed():

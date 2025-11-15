@@ -1,8 +1,9 @@
-# battle_manager.gd (v2.3 - ИСПРАВЛЕНО: удалён дублирующий таймер закрытия UI)
+# battle_manager.gd (v2.4 - ИСПРАВЛЕНО: правильная сигнатура initialize)
 extends Node
 
 var quest_system
 var districts_system
+var main_controller  # ✅ НОВОЕ: сохраняем ссылку на main
 
 # Шаблоны для наград (из enemy_templates)
 var enemy_reward_templates = {
@@ -14,10 +15,12 @@ var enemy_reward_templates = {
 	"boss": {"money": 300, "reputation": 50}
 }
 
-func initialize():
+# ✅ ИСПРАВЛЕНО: добавлен параметр game_controller
+func initialize(game_controller):
+	main_controller = game_controller
 	quest_system = get_node_or_null("/root/QuestSystem")
 	districts_system = get_node_or_null("/root/DistrictsSystem")
-	print("⚔️ Battle Manager v2.3 (групповые бои + правильное закрытие UI)")
+	print("⚔️ Battle Manager v2.4 (исправлена инициализация)")
 
 # ✅ ФИКС: Расчёт награды
 func calculate_reward(enemy_type: String, enemy_count: int) -> Dictionary:
@@ -173,6 +176,13 @@ func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battl
 			main_node.player_data["balance"] += reward["money"]
 			main_node.player_data["reputation"] += reward["reputation"]
 			
+			# ✅ ЛОГИ: Победа с наградами
+			var log_system = get_node_or_null("/root/LogSystem")
+			if log_system:
+				log_system.add_success_log("🏆 Победа в бою!")
+				log_system.add_money_log("💰 Заработано: +%d руб." % reward["money"])
+				log_system.add_success_log("⭐ Репутация: +%d" % reward["reputation"])
+			
 			# Квесты/районы
 			if main_node.quest_system:
 				main_node.quest_system.progress_quest("win_fights", 1)
@@ -183,6 +193,13 @@ func start_battle(main_node: Node, enemy_type: String = "gopnik", is_first_battl
 			print("🏆 Победа! Награда: %s" % reward)
 		else:
 			main_node.player_data["balance"] = max(0, main_node.player_data["balance"] - 50)
+			
+			# ✅ ЛОГИ: Поражение
+			var log_system = get_node_or_null("/root/LogSystem")
+			if log_system:
+				log_system.add_attack_log("💀 Поражение в бою!")
+				log_system.add_attack_log("💸 Потеряно: -50 руб.")
+			
 			main_node.show_message("❌ Поражение!\n💸 -50 руб.")
 			print("💀 Поражение!")
 		

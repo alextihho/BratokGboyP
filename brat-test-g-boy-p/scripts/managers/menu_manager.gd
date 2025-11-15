@@ -246,3 +246,6 @@ func show_stats_window(main_node: Node):
 	close_btn.pressed.connect(func(): stats_popup.queue_free())
 	
 	stats_popup.add_child(close_btn)
+func _ready():
+	gang_manager = get_node("/root/GangManager")
+	quest_system = get_node_or_null("/root/QuestSystem")

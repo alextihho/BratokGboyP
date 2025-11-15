@@ -1,310 +1,163 @@
-# action_handler.gd (ИСПРАВЛЕНО - СОБЫТИЯ + КВЕСТЫ РАБОТАЮТ!)
+# action_handler.gd (ИСПРАВЛЕНО - БЕЗ АВТОБИТВЫ)
 extends Node
 
-var player_data: Dictionary
-var items_db
 var building_system
 var quest_system
-var simple_jobs
+var random_events
+var districts_system
 var hospital_system
-var police_system
-var bar_system
-var car_system
-var time_system
-var random_events  # ✅ ДОБАВЛЕНО
+
+var player_data: Dictionary
+var current_location: String = ""
 
 func initialize(p_player_data: Dictionary):
 	player_data = p_player_data
 	
-	# Загружаем системы
-	items_db = get_node_or_null("/root/ItemsDB")
-	building_system = get_node_or_null("/root/BuildingSystem")
+	building_system = get_node("/root/BuildingSystem")
 	quest_system = get_node_or_null("/root/QuestSystem")
-	simple_jobs = get_node_or_null("/root/SimpleJobs")
+	random_events = get_node_or_null("/root/RandomEvents")
+	districts_system = get_node_or_null("/root/DistrictsSystem")
 	hospital_system = get_node_or_null("/root/HospitalSystem")
-	police_system = get_node_or_null("/root/PoliceSystem")
-	bar_system = get_node_or_null("/root/BarSystem")
-	car_system = get_node_or_null("/root/CarSystem")
-	time_system = get_node_or_null("/root/TimeSystem")
-	random_events = get_node_or_null("/root/RandomEvents")  # ✅ ДОБАВЛЕНО
 	
-	print("🎯 ActionHandler инициализирован")
+	print("✅ Action Handler инициализирован (без автобитвы)")
 
-# ✅ НОВАЯ ФУНКЦИЯ: Триггерит события при посещении локации
-func trigger_location_events(location_name: String, main_node: Node):
-	"""Вызывается при входе в локацию для проверки случайных событий"""
-	if not random_events:
-		print("⚠️ RandomEvents система недоступна!")
+func handle_location_action(location: String, action_index: int, main_node: Node):
+	current_location = location
+	print("🎯 Обработка действия в " + location + ", индекс: " + str(action_index))
+	
+	# ✅ НОВОЕ: Логируем действие
+	var log_system = get_node_or_null("/root/LogSystem")
+	if log_system:
+		log_system.add_event_log("🎯 Действие в локации: %s" % location)
+	
+	# ✅ НОВОЕ: Тратим время на действие (5-15 минут)
+	var time_system = get_node_or_null("/root/TimeSystem")
+	if time_system:
+		var time_cost = randi_range(5, 15)
+		time_system.add_minutes(time_cost)
+		print("⏰ Время действия: +%d минут" % time_cost)
+	
+	# ✅ НОВОЕ: Обработка ФСБ
+	if location == "ФСБ":
+		handle_fsb_action(action_index, main_node)
 		return
 	
-	# Даём небольшую задержку чтобы меню успело открыться
-	await main_node.get_tree().create_timer(0.5).timeout
+	# Специальная обработка больницы
+	if location == "БОЛЬНИЦА":
+		handle_hospital_action(action_index, main_node)
+		return
+
+	# ✅ ФИКС: Интеграция АВТОСАЛОНА
+	if location == "АВТОСАЛОН":
+		handle_car_dealership_action(action_index, main_node)
+		return
+
+	# ✅ ФИКС: Интеграция БАРА
+	if location == "БАР":
+		handle_bar_action(action_index, main_node)
+		return
 	
-	# Триггерим событие
-	var event_happened = random_events.trigger_random_event(location_name, player_data, main_node)
+	# Обработка остальных локаций через building_system
+	if building_system:
+		building_system.handle_building_action(location, action_index, player_data, main_node)
 	
-	if event_happened:
-		print("✅ Событие произошло в: " + location_name)
-	else:
-		print("   Событий не произошло")
+	# Проверка прогресса квестов
+	if quest_system:
+		quest_system.check_quest_progress("collect", {"balance": player_data["balance"]})
+		quest_system.check_quest_progress("item", {"inventory": player_data["inventory"]})
+		quest_system.check_quest_progress("reputation", {"reputation": player_data["reputation"]})
 
-func handle_location_action(location_name: String, action_index: int, main_node: Node):
-	print("🎯 Обработка действия [%d] в локации: %s" % [action_index, location_name])
-	
-	match location_name:
-		"ОБЩЕЖИТИЕ":
-			handle_dorm_action(action_index, main_node)
-		"ЛАРЁК":
-			handle_kiosk_action(action_index, main_node)
-		"ВОКЗАЛ":
-			handle_station_action(action_index, main_node)
-		"ГАРАЖ":
-			handle_garage_action(action_index, main_node)
-		"РЫНОК":
-			handle_market_action(action_index, main_node)
-		"ПОРТ":
-			handle_port_action(action_index, main_node)
-		"УЛИЦА":
-			handle_street_action(action_index, main_node)
-		"БОЛЬНИЦА":
-			handle_hospital_action(action_index, main_node)
-		"ФСБ":
-			handle_fsb_action(action_index, main_node)
-		"БАР":
-			handle_bar_action(action_index, main_node)
-		"АВТОСАЛОН":
-			handle_car_dealership_action(action_index, main_node)
-		_:
-			main_node.show_message("❌ Действие для локации %s не определено!" % location_name)
-
-# ===== ОБЩЕЖИТИЕ =====
-func handle_dorm_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Отдохнуть
-			if time_system:
-				time_system.add_hours(8)
-			player_data["health"] = min(100, player_data["health"] + 50)
-			main_node.show_message("😴 Вы хорошо отдохнули.\n❤️ Здоровье: +50")
-			main_node.update_ui()
-			main_node.close_location_menu()
-		1:  # Поговорить с другом
-			main_node.show_message("👋 Друг рассказал новости района")
-			main_node.close_location_menu()
-		2:  # Взять вещи
-			main_node.show_message("📦 Взяли пару вещей из комнаты")
-			main_node.close_location_menu()
-
-# ===== ЛАРЁК =====
-func handle_kiosk_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Купить пиво (30р)
-			if player_data["balance"] >= 30:
-				player_data["balance"] -= 30
-				player_data["inventory"].append("Пиво")
-				main_node.show_message("🍺 Куплено пиво за 30 руб.")
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		1:  # Купить сигареты (15р)
-			if player_data["balance"] >= 15:
-				player_data["balance"] -= 15
-				player_data["inventory"].append("Сигареты")
-				main_node.show_message("🚬 Куплены сигареты за 15 руб.")
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		2:  # Купить кепку (50р)
-			if player_data["balance"] >= 50:
-				player_data["balance"] -= 50
-				player_data["inventory"].append("Кепка")
-				main_node.show_message("🧢 Куплена кепка за 50 руб.")
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-
-# ===== ВОКЗАЛ =====
-func handle_station_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Купить билет
-			main_node.show_message("🚂 Билеты пока недоступны")
-			main_node.close_location_menu()
-		1:  # Встретить контакт
-			if quest_system:
-				main_node.show_message("👤 Контакт сообщил важную информацию")
-			main_node.close_location_menu()
-		2:  # Осмотреться
-			main_node.show_message("👀 Вокзал полон людей...")
-			main_node.close_location_menu()
-
-# ===== ГАРАЖ =====
-func handle_garage_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Купить биту (100р)
-			if player_data["balance"] >= 100:
-				player_data["balance"] -= 100
-				player_data["inventory"].append("Бита")
-				main_node.show_message("⚾ Куплена бита за 100 руб.")
-				
-				# ✅ ИСПРАВЛЕНО: Обновляем квест правильно
-				if quest_system:
-					quest_system.progress_quest("buy_weapon", 1)
-				
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		1:  # Помочь механику
-			if simple_jobs:
-				main_node.close_location_menu()
-				simple_jobs.show_job_menu(main_node)
-			else:
-				main_node.show_message("💼 Механик занят...")
-				main_node.close_location_menu()
-		2:  # Взять инструменты
-			main_node.show_message("🔧 Взяли несколько инструментов")
-			main_node.close_location_menu()
-
-# ===== РЫНОК =====
-func handle_market_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Купить кожанку (200р)
-			if player_data["balance"] >= 200:
-				player_data["balance"] -= 200
-				player_data["inventory"].append("Кожанка")
-				main_node.show_message("🧥 Куплена кожанка за 200 руб.")
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		1:  # Продать вещь
-			main_node.show_message("💰 Продажа пока недоступна")
-			main_node.close_location_menu()
-		2:  # Узнать новости
-			main_node.show_message("📰 На рынке говорят о новых разборках...")
-			main_node.close_location_menu()
-
-# ===== ПОРТ =====
-func handle_port_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Купить ПМ (500р)
-			if player_data["balance"] >= 500:
-				player_data["balance"] -= 500
-				player_data["inventory"].append("ПМ")
-				main_node.show_message("🔫 Куплен ПМ за 500 руб.")
-				
-				# ✅ ИСПРАВЛЕНО: Обновляем квест правильно
-				if quest_system:
-					quest_system.progress_quest("buy_weapon", 1)
-				
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		1:  # Купить отмычку (100р)
-			if player_data["balance"] >= 100:
-				player_data["balance"] -= 100
-				player_data["inventory"].append("Отмычка")
-				main_node.show_message("🔓 Куплена отмычка за 100 руб.")
-				main_node.update_ui()
-			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
-		2:  # Уйти
-			main_node.close_location_menu()
-
-# ===== УЛИЦА =====
-func handle_street_action(action_index: int, main_node: Node):
-	match action_index:
-		0:  # Прогуляться
-			if time_system:
-				time_system.add_minutes(30)
-			main_node.show_message("🚶 Прогулялись по улице")
-			main_node.close_location_menu()
-		1:  # Встретить знакомого
-			main_node.show_message("👋 Встретили старого знакомого")
-			main_node.close_location_menu()
-		2:  # Посмотреть вокруг
-			main_node.show_message("👀 Улицы полны жизни 90-х...")
-			main_node.close_location_menu()
-
-# ===== БОЛЬНИЦА =====
 func handle_hospital_action(action_index: int, main_node: Node):
 	match action_index:
 		0:  # Лечиться
+			# ✅ Закрываем меню выбора действий ПЕРЕД открытием UI лечения
+			main_node.close_location_menu()
+			
 			if hospital_system:
-				main_node.close_location_menu()
-				hospital_system.show_hospital_menu(
-					main_node, 
-					main_node.player_data,
-					main_node.gang_members
-				)
+				hospital_system.show_hospital_menu(main_node, player_data)
 			else:
-				main_node.show_message("❌ Система больницы недоступна!")
-				main_node.close_location_menu()
-		1:  # Купить аптечку (100р)
+				main_node.show_message("Система больниц недоступна")
+		1:  # Купить аптечку
 			if player_data["balance"] >= 100:
 				player_data["balance"] -= 100
 				player_data["inventory"].append("Аптечка")
-				main_node.show_message("💊 Куплена аптечка за 100 руб.")
+				main_node.show_message("✅ Куплена аптечка (100 руб.)")
 				main_node.update_ui()
 			else:
-				main_node.show_message("❌ Недостаточно денег!")
-			main_node.close_location_menu()
+				main_node.show_message("❌ Недостаточно денег! Нужно: 100 руб.")
 		2:  # Уйти
 			main_node.close_location_menu()
 
-# ===== ФСБ =====
+func trigger_location_events(location_name: String, main_node: Node):
+	print("🎲 Триггер событий для локации: " + location_name)
+	
+	# ✅ ИСПРАВЛЕНО: НЕ запускаем НИКАКИЕ битвы автоматически
+	# random_events НЕ ИСПОЛЬЗУЕМ ВООБЩЕ
+	
+	# Проверка прогресса квестов
+	if quest_system:
+		quest_system.check_quest_progress("visit", {"location": location_name})
+	
+	# Добавление влияния при посещении
+	if districts_system:
+		var district = districts_system.get_district_by_building(location_name)
+		if district != "":
+			districts_system.add_influence(district, "Игрок", 1)
+			print("📊 +1% влияния в районе: " + district)
+
+func get_current_location() -> String:
+	return current_location
+
 func handle_fsb_action(action_index: int, main_node: Node):
+	var police_system = get_node_or_null("/root/PoliceSystem")
+	
 	match action_index:
 		0:  # Дать взятку
 			if police_system:
-				main_node.close_location_menu()
-				police_system.show_bribe_menu(main_node)
+				police_system.show_fsb_bribe_menu(main_node)
 			else:
-				main_node.show_message("❌ Система полиции недоступна!")
-				main_node.close_location_menu()
+				main_node.show_message("Система полиции недоступна")
 		1:  # Уйти
 			main_node.close_location_menu()
 
-# ===== БАР =====
-func handle_bar_action(action_index: int, main_node: Node):
+# ✅ ФИКС: Новая функция для интеграции АВТОСАЛОНА
+func handle_car_dealership_action(action_index: int, main_node: Node):
+	# main_node.car_system - это система, загруженная в main.gd
+	if not main_node.car_system:
+		main_node.show_message("Система машин недоступна")
+		return
+
+	# Действия "Выбор машины" (0) и "Починить" (1) должны открывать
+	# ОДНО И ТО ЖЕ главное меню автосалона. "Уйти" (2) - просто закрывает.
+	
 	match action_index:
-		0:  # Отдохнуть
-			if bar_system:
-				main_node.close_location_menu()
-				bar_system.show_bar_menu(main_node, main_node.player_data, main_node.gang_members)
-			else:
-				main_node.show_message("❌ Система бара недоступна!")
-				main_node.close_location_menu()
-		1:  # Бухать с бандой
-			if bar_system:
-				main_node.close_location_menu()
-				bar_system.show_bar_menu(main_node, main_node.player_data, main_node.gang_members)
-			else:
-				main_node.show_message("❌ Система бара недоступна!")
-				main_node.close_location_menu()
-		2:  # Уйти
+		0: # 🚗 Выбор машины
+			main_node.close_location_menu() # Закрываем меню 1-го уровня
+			main_node.car_system.show_car_dealership_menu(main_node, player_data)
+		1: # 🔧 Починить машину
+			main_node.close_location_menu() # Закрываем меню 1-го уровня
+			main_node.car_system.show_car_dealership_menu(main_node, player_data)
+		2: # 🚪 Уйти
 			main_node.close_location_menu()
 
-# ===== АВТОСАЛОН =====
-func handle_car_dealership_action(action_index: int, main_node: Node):
+# ✅ ФИКС: Новая функция для интеграции БАРА
+func handle_bar_action(action_index: int, main_node: Node):
+	if not main_node.bar_system:
+		main_node.show_message("Система бара недоступна")
+		return
+
+	# Получаем данные о банде из main.gd
+	var gang_members = main_node.gang_members if "gang_members" in main_node else []
+
+	# Действия "Отдохнуть" (0) и "Бухать" (1) открывают
+	# ОДНО И ТО ЖЕ главное меню бара.
+	
 	match action_index:
-		0:  # Выбор машины
-			if car_system:
-				main_node.close_location_menu()
-				car_system.show_car_dealership_menu(main_node, main_node.player_data)
-			else:
-				main_node.show_message("❌ Система машин недоступна!")
-				main_node.close_location_menu()
-		1:  # Починить машину
-			if car_system:
-				main_node.close_location_menu()
-				car_system.show_car_dealership_menu(main_node, main_node.player_data)
-			else:
-				main_node.show_message("❌ Система машин недоступна!")
-				main_node.close_location_menu()
-		2:  # Уйти
+		0: # 🍺 Отдохнуть
+			main_node.close_location_menu()
+			main_node.bar_system.show_bar_menu(main_node, player_data, gang_members)
+		1: # 🍻 Бухать с бандой
+			main_node.close_location_menu()
+			main_node.bar_system.show_bar_menu(main_node, player_data, gang_members)
+		2: # 🚪 Уйти
 			main_node.close_location_menu()

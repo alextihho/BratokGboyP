@@ -47,6 +47,32 @@ func create_top_panel(parent_node: Node):
 	avatar_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(avatar_label)
 	
+	# ⭐ НОВОЕ: Невидимая кнопка поверх аватара для клика
+	var avatar_btn = Button.new()
+	avatar_btn.custom_minimum_size = Vector2(80, 80)
+	avatar_btn.position = Vector2(20, 20)
+	avatar_btn.name = "AvatarClickButton"
+	avatar_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Делаем кнопку прозрачной
+	var transparent_style = StyleBoxEmpty.new()
+	avatar_btn.add_theme_stylebox_override("normal", transparent_style)
+	avatar_btn.add_theme_stylebox_override("hover", transparent_style)
+	avatar_btn.add_theme_stylebox_override("pressed", transparent_style)
+	
+	# При клике - открываем инвентарь
+	avatar_btn.pressed.connect(func():
+		print("🎒 Клик по аватару - открываем инвентарь")
+		# Открываем инвентарь через menu_manager
+		var menu_mgr = parent_node.get_node_or_null("MenuManager")
+		if menu_mgr and menu_mgr.has_method("show_inventory_menu"):
+			menu_mgr.show_inventory_menu(0)  # Главный игрок (индекс 0)
+		else:
+			print("⚠️ MenuManager не найден!")
+	)
+	
+	ui_layer.add_child(avatar_btn)
+	
 	# Репутация
 	var rep_label = Label.new()
 	rep_label.text = "Авторитет: " + str(player_data["reputation"])

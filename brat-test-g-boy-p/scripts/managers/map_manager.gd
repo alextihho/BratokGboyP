@@ -37,10 +37,22 @@ func create_tver_map(parent: Node2D):
 		add_location(parent, location_name, pos)
 
 func add_location(parent: Node2D, name: String, position: Vector2):
-	# ✅ НЕ создаем визуальные элементы!
-	# Здания отображаются через grid_system как желтые квадраты
-	# Здесь только логика для обратной совместимости
-	pass
+	# Квадрат локации
+	var location = ColorRect.new()
+	location.size = Vector2(80, 40)
+	location.color = Color(0.5, 0.5, 0.5, 1.0)
+	location.position = position
+	location.name = "Location_" + name
+	parent.add_child(location)
+	
+	# Лейбл локации
+	var label = Label.new()
+	label.text = name
+	label.position = position + Vector2(5, -25)
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.name = "Label_" + name
+	parent.add_child(label)
 
 func create_player(parent: Node2D):
 	player = ColorRect.new()
