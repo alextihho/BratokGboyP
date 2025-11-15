@@ -56,23 +56,25 @@ func upgrade_car(level: int):
 	data_changed.emit()
 	print("Машина lvl " + str(data.car_level))
 
+# ✅ ИСПРАВЛЕНО: используем quest["id"] вместо quest.id
 func is_quest_completed(quest_id: String) -> bool:
 	for quest in active_quests:
-		if quest.id == quest_id:
-			return quest.completed
+		if quest["id"] == quest_id:
+			return quest["completed"]
 	return false
 
+# ✅ ИСПРАВЛЕНО: используем quest["id"] вместо quest.id и quest.has() правильно
 func complete_quest(quest_id: String) -> bool:
 	for quest in active_quests:
-		if quest.id == quest_id and not quest.completed:
-			quest.completed = true
-			data.completed_quests.append(quest.name)
-			if quest.reward.has("money"):
-				earn_money(quest.reward.money)
-			if quest.reward.has("rep"):
-				change_reputation(quest.reward.rep)
-			if quest.reward.has("car"):
-				upgrade_car(quest.reward.car)
+		if quest["id"] == quest_id and not quest["completed"]:
+			quest["completed"] = true
+			data.completed_quests.append(quest["name"])
+			if quest["reward"].has("money"):
+				earn_money(quest["reward"]["money"])
+			if quest["reward"].has("rep"):
+				change_reputation(quest["reward"]["rep"])
+			if quest["reward"].has("car"):
+				upgrade_car(quest["reward"]["car"])
 			print("✅ Квест завершён!")
 			data_changed.emit()
 			return true

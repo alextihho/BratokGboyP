@@ -78,18 +78,14 @@ func assign_district(x: int, y: int) -> String:
 	return "Спальный"
 
 func _draw_grid():
-	# ✅ ЗДАНИЯ ВСЕГДА ВИДНЫ (даже при grid_visible = false)
-	# Рисуем здания ДО проверки grid_visible
+	# ✅ ФИКС: Здания (ПЕРЕМЕЩЕНО ВВЕРХ, чтобы рисоваться всегда)
 	for square_id in grid_squares:
 		var square = grid_squares[square_id]
 		if square["building"] != null:
-			var building_pos = square["position"] + Vector2(square_size / 2 - 20, square_size / 2 - 20)
-			# Желтый квадрат здания (увеличен с 24 до 40)
-			draw_control.draw_rect(Rect2(building_pos, Vector2(40, 40)), Color(1.0, 0.9, 0.0, 1.0), true)
-			# Оранжевая обводка
-			draw_control.draw_rect(Rect2(building_pos, Vector2(40, 40)), Color(1.0, 0.5, 0.0, 1.0), false, 3.0)
-	
-	# Остальное рисуется ТОЛЬКО если сетка видна
+			var building_pos = square["position"] + Vector2(square_size / 2 - 12, square_size / 2 - 12)
+			draw_control.draw_rect(Rect2(building_pos, Vector2(24, 24)), Color.YELLOW, true)
+			draw_control.draw_rect(Rect2(building_pos, Vector2(24, 24)), Color.ORANGE, false, 3.0)
+
 	if not grid_visible:
 		return
 	

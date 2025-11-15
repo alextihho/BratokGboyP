@@ -1,4 +1,4 @@
-# time_system.gd
+# time_system.gd - ИСПРАВЛЕНО (добавлен add_hours)
 # Система игрового времени
 extends Node
 
@@ -19,6 +19,16 @@ var paused: bool = false
 
 func _ready():
 	print("⏰ Система времени инициализирована: " + get_date_time_string())
+
+# ✅ НОВОЕ: Добавить часы к текущему времени
+func add_hours(hours: int):
+	if paused:
+		return
+	
+	print("⏰ Добавляем %d часов" % hours)
+	
+	# Преобразуем часы в минуты и используем add_minutes
+	add_minutes(hours * 60)
 
 # Добавить минуты к текущему времени
 func add_minutes(minutes: int):
@@ -60,14 +70,8 @@ func add_minutes(minutes: int):
 	
 	if old_day != current_time["day"]:
 		day_changed.emit(current_time["day"], current_time["month"], current_time["year"])
-
-# ✅ НОВОЕ: Добавить часы
-func add_hours(hours: int):
-	add_minutes(hours * 60)
-
-# ✅ НОВОЕ: Добавить дни
-func add_days(days: int):
-	add_minutes(days * 24 * 60)
+	
+	print("⏰ Текущее время: " + get_date_time_string())
 
 # Проверка смены периода дня
 func check_time_of_day_change(old_hour: int, new_hour: int):
@@ -106,7 +110,7 @@ func get_days_in_month(month: int, year: int) -> int:
 
 # Получить строку с датой и временем
 func get_date_time_string() -> String:
-	return "%02d.%02d.%d %02d:%02d" % [
+	return "%02d.%02d.%d, %02d:%02d" % [
 		current_time["day"],
 		current_time["month"],
 		current_time["year"],
