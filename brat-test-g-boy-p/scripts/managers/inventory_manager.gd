@@ -185,10 +185,10 @@ func equip_item(item_name: String, from_pocket: bool, pocket_index: int, player_
 
 	main_node.show_message("✅ Экипировано: " + item_name)
 
-	# ✅ ВАЖНО: Обновляем статы игрока если есть метод
+	# ✅ ВАЖНО: Обновляем статы игрока
 	var player_stats = get_node_or_null("/root/PlayerStats")
 	if player_stats and player_stats.has_method("recalculate_equipment_bonuses"):
-		player_stats.recalculate_equipment_bonuses(player_data)
+		player_stats.recalculate_equipment_bonuses(player_data["equipment"], items_db)
 
 	main_node.update_ui()
 
