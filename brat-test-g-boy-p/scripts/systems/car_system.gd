@@ -336,7 +336,7 @@ func buy_car(main_node: Node, player_data: Dictionary, car_id: String, car: Dict
 	
 	# ✅ НОВОЕ: Логируем покупку
 	if log_system:
-		log_system.add_money_log("🚗 Куплена машина: %s (-% dр)" % [car["name"], car["price"]])
+		log_system.add_money_log("🚗 Куплена машина: %s (-%d р)" % [car["name"], car["price"]])
 	
 	main_node.update_ui()
 	
@@ -464,7 +464,7 @@ func repair_car(main_node: Node, player_data: Dictionary, cost: int, confirm_lay
 	
 	# ✅ НОВОЕ: Логируем ремонт
 	if log_system:
-		log_system.add_money_log("🔧 Ремонт машины (-%dр)" % cost)
+		log_system.add_money_log("🔧 Ремонт машины (-%d р)" % cost)
 	
 	main_node.update_ui()
 	

@@ -166,7 +166,6 @@ func show_bar_menu(main_node: Node, player_data: Dictionary, gang_members: Array
 	close_btn.add_theme_font_size_override("font_size", 20)
 	close_btn.pressed.connect(func():
 		bar_menu.queue_free()
-		main_node.show_location_menu("БАР")
 	)
 	bar_menu.add_child(close_btn)
 
