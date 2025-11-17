@@ -27,7 +27,7 @@ func setup(p_data, member_index: int, p_gang_members: Array):
 func create_ui():
 	for child in get_children():
 		child.queue_free()
-	
+
 	# ✅ Overlay для блокировки кликов
 	var overlay = ColorRect.new()
 	overlay.size = Vector2(720, 1280)
@@ -35,16 +35,17 @@ func create_ui():
 	overlay.color = Color(0, 0, 0, 0.7)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
-	
+
 	var bg = ColorRect.new()
 	bg.size = Vector2(700, 1060)
 	bg.position = Vector2(10, 140)
 	bg.color = Color(0.05, 0.05, 0.05, 0.95)
 	bg.name = "InventoryBG"
 	add_child(bg)
-	
-	var member_name = "ИНВЕНТАРЬ"
-	if gang_members.size() > current_member_index:
+
+	# ✅ ИСПРАВЛЕНО: Для игрока (member_index=0) показываем "МОЙ ИНВЕНТАРЬ"
+	var member_name = "МОЙ ИНВЕНТАРЬ"
+	if current_member_index > 0 and gang_members.size() > current_member_index:
 		member_name = gang_members[current_member_index]["name"] + " - ИНВЕНТАРЬ"
 	
 	var title = Label.new()
