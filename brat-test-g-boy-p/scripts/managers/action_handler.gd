@@ -25,10 +25,8 @@ func handle_location_action(location: String, action_index: int, main_node: Node
 	current_location = location
 	print("🎯 Обработка действия в " + location + ", индекс: " + str(action_index))
 	
-	# ✅ НОВОЕ: Логируем действие
-	var log_system = get_node_or_null("/root/LogSystem")
-	if log_system:
-		log_system.add_event_log("🎯 Действие в локации: %s" % location)
+	# ✅ Логируем действие в лог событий
+	main_node.add_to_log("📍 Зашли: %s" % location)
 	
 	# ✅ НОВОЕ: Тратим время на действие (5-15 минут)
 	var time_system = get_node_or_null("/root/TimeSystem")
@@ -120,44 +118,46 @@ func handle_fsb_action(action_index: int, main_node: Node):
 		1:  # Уйти
 			main_node.close_location_menu()
 
-# ✅ ФИКС: Новая функция для интеграции АВТОСАЛОНА
+# ✅ АВТОСАЛОН - ИСПРАВЛЕНО
 func handle_car_dealership_action(action_index: int, main_node: Node):
-	# main_node.car_system - это система, загруженная в main.gd
-	if not main_node.car_system:
-		main_node.show_message("Система машин недоступна")
+	var car_system = get_node_or_null("/root/CarSystem")
+
+	if not car_system:
+		main_node.show_message("❌ Автосалон закрыт")
+		print("⚠️ CarSystem НЕ НАЙДЕН в autoload!")
 		return
 
-	# Действия "Выбор машины" (0) и "Починить" (1) должны открывать
-	# ОДНО И ТО ЖЕ главное меню автосалона. "Уйти" (2) - просто закрывает.
-	
+	print("✅ CarSystem найден, открываем автосалон")
+
 	match action_index:
 		0: # 🚗 Выбор машины
-			main_node.close_location_menu() # Закрываем меню 1-го уровня
-			main_node.car_system.show_car_dealership_menu(main_node, player_data)
+			main_node.close_location_menu()
+			car_system.show_car_dealership_menu(main_node, main_node.player_data)
 		1: # 🔧 Починить машину
-			main_node.close_location_menu() # Закрываем меню 1-го уровня
-			main_node.car_system.show_car_dealership_menu(main_node, player_data)
+			main_node.close_location_menu()
+			car_system.show_car_dealership_menu(main_node, main_node.player_data)
 		2: # 🚪 Уйти
 			main_node.close_location_menu()
 
-# ✅ ФИКС: Новая функция для интеграции БАРА
+# ✅ БАР - ИСПРАВЛЕНО
 func handle_bar_action(action_index: int, main_node: Node):
-	if not main_node.bar_system:
-		main_node.show_message("Система бара недоступна")
+	var bar_system = get_node_or_null("/root/BarSystem")
+
+	if not bar_system:
+		main_node.show_message("❌ Бар закрыт")
+		print("⚠️ BarSystem НЕ НАЙДЕН в autoload!")
 		return
 
-	# Получаем данные о банде из main.gd
+	print("✅ BarSystem найден, открываем бар")
+
 	var gang_members = main_node.gang_members if "gang_members" in main_node else []
 
-	# Действия "Отдохнуть" (0) и "Бухать" (1) открывают
-	# ОДНО И ТО ЖЕ главное меню бара.
-	
 	match action_index:
 		0: # 🍺 Отдохнуть
 			main_node.close_location_menu()
-			main_node.bar_system.show_bar_menu(main_node, player_data, gang_members)
+			bar_system.show_bar_menu(main_node, main_node.player_data, gang_members)
 		1: # 🍻 Бухать с бандой
 			main_node.close_location_menu()
-			main_node.bar_system.show_bar_menu(main_node, player_data, gang_members)
+			bar_system.show_bar_menu(main_node, main_node.player_data, gang_members)
 		2: # 🚪 Уйти
 			main_node.close_location_menu()

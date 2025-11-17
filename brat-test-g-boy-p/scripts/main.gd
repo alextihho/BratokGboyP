@@ -104,6 +104,13 @@ func _ready():
 		log_system.add_log("📍 Тверь, 02.03.1992", "info")
 	
 	show_intro_text()
+
+	# ✅ КРИТИЧНО: Инициализируем UI и время ПОСЛЕ intro
+	await get_tree().create_timer(0.5).timeout
+	update_ui()
+	update_time_ui()
+	print("⏰ Время и UI инициализированы при запуске")
+
 	print("✅ Игра готова! (РЕФАКТОРИНГ + ЛОГИ + БАР + МАШИНЫ)")
 
 # ===== ОБРАБОТКА ВВОДА =====
@@ -225,31 +232,43 @@ func update_ui():
 
 func update_time_ui():
 	if not ui_controller or not time_system:
+		print("⚠️ update_time_ui: НЕТ ui_controller или time_system!")
 		return
 	var ui_layer = ui_controller.get_ui_layer()
+	if not ui_layer:
+		print("⚠️ update_time_ui: НЕТ ui_layer!")
+		return
 	var date_label = ui_layer.get_node_or_null("DateLabel")
 	if date_label:
-		date_label.text = time_system.get_date_time_string()
+		var new_time = time_system.get_date_time_string()
+		date_label.text = new_time
+		print("✅ ВРЕМЯ ОБНОВЛЕНО НА UI: " + new_time)
+	else:
+		print("⚠️ update_time_ui: DateLabel НЕ НАЙДЕН!")
 
+# ✅ ТЕХНИЧЕСКИЙ текст - ТОЛЬКО в центр экрана (БЕЗ логов!)
 func show_message(text: String):
 	ui_controller.show_message(text, self)
-	
-	# ✅ Логируем с ПРАВИЛЬНЫМИ цветами
-	if log_system:
-		var clean_text = text.replace("\n", " ")
-		
-		# ЗЕЛЕНЫЙ - успех, заработок, лечение
-		if "✅" in text or "Победа" in text or "💰 +" in text or "❤️ +" in text or "Куплен" in text or "лечени" in text:
-			log_system.add_success_log(clean_text)
-		# КРАСНЫЙ - нападения, атаки, поражения
-		elif "⚔" in text or "урон" in text or "Поражение" in text or "❌" in text or "⚠️ ОБУЧЕНИЕ" in text or "гопник" in text:
-			log_system.add_attack_log(clean_text)
-		# БЕЖЕВО-ЖЕЛТЫЙ - новости, оповещения
-		elif "📅" in text or "Новый день" in text or "🌅" in text or "☀️" in text or "🌆" in text or "🌙" in text:
-			log_system.add_news_log(clean_text)
-		# Остальное - обычные события
-		else:
-			log_system.add_event_log(clean_text)
+
+# ✅ ХУДОЖЕСТВЕННЫЙ текст - ТОЛЬКО в лог событий (БЕЗ центра экрана!)
+func add_to_log(text: String):
+	if not log_system:
+		return
+
+	var clean_text = text.replace("\n", " ")
+
+	# ЗЕЛЕНЫЙ - успех, заработок, лечение
+	if "✅" in text or "Победа" in text or "💰" in text or "Нашли" in text or "лечени" in text:
+		log_system.add_success_log(clean_text)
+	# КРАСНЫЙ - нападения, атаки, поражения
+	elif "⚔" in text or "урон" in text or "Поражение" in text or "❌" in text or "гопник" in text:
+		log_system.add_attack_log(clean_text)
+	# БЕЖЕВО-ЖЕЛТЫЙ - новости, оповещения
+	elif "📅" in text or "Новый день" in text or "🌅" in text:
+		log_system.add_news_log(clean_text)
+	# Остальное - обычные события
+	else:
+		log_system.add_event_log(clean_text)
 
 # ===== СОБЫТИЯ ВРЕМЕНИ =====
 func _on_time_changed(_hour: int, _minute: int):
