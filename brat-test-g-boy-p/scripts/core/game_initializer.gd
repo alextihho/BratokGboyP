@@ -20,23 +20,26 @@ func load_autoload_systems(game_controller):
 	game_controller.log_system = get_node_or_null("/root/LogSystem")
 	game_controller.bar_system = get_node_or_null("/root/BarSystem")
 	game_controller.car_system = get_node_or_null("/root/CarSystem")
-	
+
 	print("✅ Автолоад системы загружены")
-	
+	print("   log_system: " + str(game_controller.log_system))
+	print("   bar_system: " + str(game_controller.bar_system))
+	print("   car_system: " + str(game_controller.car_system))
+
 	if game_controller.log_system:
-		print("✅ LogSystem доступен")
+		print("✅ LogSystem НАЙДЕН и доступен")
 	else:
-		print("⚠️ LogSystem не найден!")
-	
+		print("❌ LogSystem НЕ НАЙДЕН! Проверь autoload!")
+
 	if game_controller.bar_system:
-		print("✅ BarSystem доступен")
+		print("✅ BarSystem НАЙДЕН и доступен")
 	else:
-		print("⚠️ BarSystem не найден!")
-	
+		print("❌ BarSystem НЕ НАЙДЕН! Проверь autoload!")
+
 	if game_controller.car_system:
-		print("✅ CarSystem доступен")
+		print("✅ CarSystem НАЙДЕН и доступен")
 	else:
-		print("⚠️ CarSystem не найден!")
+		print("❌ CarSystem НЕ НАЙДЕН! Проверь autoload!")
 
 # ===== НАСТРОЙКА СЕТКИ И ДВИЖЕНИЯ =====
 func setup_grid_and_movement(game_controller):

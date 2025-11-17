@@ -158,35 +158,42 @@ func handle_location_action(action_index: int):
 	# так как action_handler.gd, похоже, их не обрабатывает.
 	
 	if current_location == "АВТОСАЛОН":
-		if action_index == 0: # "🚗 Выбор машины" 
+		if action_index == 0: # "🚗 Выбор машины"
 			if car_system:
-				# Закрываем маленькое меню локации, чтобы открыть большое
+				print("✅ Открываем автосалон через car_system")
 				close_location_menu()
 				car_system.show_car_dealership_menu(self, player_data)
-			return # Выходим, чтобы не вызывать action_handler
-		
-		if action_index == 1: # "🔧 Починить машину" 
-			if car_system:
-				close_location_menu()
-				# Функция show_repair_menu находится ВНУТРИ show_car_dealership_menu
-				# поэтому мы открываем главное меню, а оттуда уже можно чинить
-				car_system.show_car_dealership_menu(self, player_data)
+			else:
+				print("❌ car_system = null! Система не загружена!")
+				show_message("❌ Автосалон недоступен")
 			return
 
-		if action_index == 2: # "🚪 Уйти" 
+		if action_index == 1: # "🔧 Починить машину"
+			if car_system:
+				print("✅ Открываем автосалон (ремонт) через car_system")
+				close_location_menu()
+				car_system.show_car_dealership_menu(self, player_data)
+			else:
+				print("❌ car_system = null!")
+				show_message("❌ Автосалон недоступен")
+			return
+
+		if action_index == 2: # "🚪 Уйти"
 			close_location_menu()
 			return
 
 	if current_location == "БАР":
-		# "🍺 Отдохнуть" (индекс 0) или "🍻 Бухать с бандой" (индекс 1) 
-		if action_index == 0 or action_index == 1: 
+		if action_index == 0 or action_index == 1:
 			if bar_system:
-				# Закрываем маленькое меню локации, чтобы открыть большое
+				print("✅ Открываем бар через bar_system")
 				close_location_menu()
 				bar_system.show_bar_menu(self, player_data, gang_members)
-			return # Выходим
-		
-		if action_index == 2: # "🚪 Уйти" 
+			else:
+				print("❌ bar_system = null! Система не загружена!")
+				show_message("❌ Бар недоступен")
+			return
+
+		if action_index == 2: # "🚪 Уйти"
 			close_location_menu()
 			return
 	
