@@ -104,6 +104,13 @@ func _ready():
 		log_system.add_log("📍 Тверь, 02.03.1992", "info")
 	
 	show_intro_text()
+
+	# ✅ ВАЖНО: Обновляем время и UI сразу после запуска
+	await get_tree().create_timer(0.1).timeout
+	update_ui()
+	update_time_ui()
+	print("⏰ Время инициализировано и обновлено")
+
 	print("✅ Игра готова! (РЕФАКТОРИНГ + ЛОГИ + БАР + МАШИНЫ)")
 
 # ===== ОБРАБОТКА ВВОДА =====
@@ -225,11 +232,18 @@ func update_ui():
 
 func update_time_ui():
 	if not ui_controller or not time_system:
+		print("⚠️ update_time_ui: ui_controller или time_system отсутствует")
 		return
 	var ui_layer = ui_controller.get_ui_layer()
+	if not ui_layer:
+		print("⚠️ update_time_ui: ui_layer отсутствует")
+		return
 	var date_label = ui_layer.get_node_or_null("DateLabel")
 	if date_label:
 		date_label.text = time_system.get_date_time_string()
+		print("✅ Время обновлено на UI: " + date_label.text)
+	else:
+		print("⚠️ update_time_ui: DateLabel не найден в UI")
 
 func show_message(text: String):
 	ui_controller.show_message(text, self)
