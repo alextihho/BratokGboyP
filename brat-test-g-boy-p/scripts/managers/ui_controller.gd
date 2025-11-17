@@ -113,9 +113,15 @@ func create_top_panel(parent_node: Node):
 	ua_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(ua_label)
 	
-	# Дата
+	# Дата - инициализируем сразу с правильным временем
 	var date_label = Label.new()
-	date_label.text = "02.03.1992, 10:00"
+	var time_sys = get_node_or_null("/root/TimeSystem")
+	if time_sys:
+		date_label.text = time_sys.get_date_time_string()
+		print("✅ DateLabel создан с временем: " + date_label.text)
+	else:
+		date_label.text = "02.03.1992, 10:00"
+		print("⚠️ TimeSystem не найден при создании DateLabel")
 	date_label.position = Vector2(480, 25)
 	date_label.add_theme_font_size_override("font_size", 14)
 	date_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 1.0))
