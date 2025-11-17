@@ -1,4 +1,4 @@
-# main.gd (ОБНОВЛЕНО - БАР, АВТОСАЛОН, ЛОГИ)
+# main.gd (ФИНАЛЬНЫЙ ФИКС - ВРЕМЯ, БАР, АВТОСАЛОН, ЛОГИ)
 extends Node2D
 
 # ===== КОМПОНЕНТЫ =====
@@ -28,9 +28,10 @@ var districts_system
 var simple_jobs
 var hospital_system
 var time_system
-var log_system  # ✅ НОВОЕ
-var bar_system  # ✅ НОВОЕ
-var car_system  # ✅ НОВОЕ
+var log_system
+var bar_system
+var car_system
+var police_system  # ✅ ДОБАВЛЕНО
 
 # ===== ИГРОВЫЕ СИСТЕМЫ =====
 var grid_system
@@ -52,8 +53,8 @@ var locations = {
 	"УЛИЦА": {"position": Vector2(150, 1050), "actions": ["Прогуляться", "Встретить знакомого", "Посмотреть вокруг"], "grid_square": "2_13"},
 	"БОЛЬНИЦА": {"position": Vector2(400, 500), "actions": ["Лечиться", "Купить аптечку (100р)", "Уйти"], "grid_square": "6_6"},
 	"ФСБ": {"position": Vector2(350, 300), "actions": ["💰 Дать взятку", "🚪 Уйти"], "grid_square": "5_3"},
-	"БАР": {"position": Vector2(700, 300), "actions": ["🍺 Отдохнуть", "🍻 Бухать с бандой", "🚪 Уйти"], "grid_square": "11_3"},  # ✅ НОВОЕ
-	"АВТОСАЛОН": {"position": Vector2(250, 650), "actions": ["🚗 Выбор машины", "🔧 Починить машину", "🚪 Уйти"], "grid_square": "4_8"}  # ✅ НОВОЕ
+	"БАР": {"position": Vector2(700, 300), "actions": ["🍺 Отдохнуть", "🍻 Бухать с бандой", "🚪 Уйти"], "grid_square": "11_3"},
+	"АВТОСАЛОН": {"position": Vector2(250, 650), "actions": ["🚗 Выбор машины", "🔧 Починить машину", "🚪 Уйти"], "grid_square": "4_8"}
 }
 
 # ===== ДАННЫЕ ИГРОКА =====
@@ -67,10 +68,10 @@ var player_data = {
 	"pockets": [null, null, null],
 	"current_square": "6_2",
 	"first_battle_completed": false,
-	"car": null,  # ✅ НОВОЕ: ID машины
-	"car_condition": 100.0,  # ✅ НОВОЕ: Состояние машины
-	"car_equipped": false,  # ✅ НОВОЕ: Надета ли машина
-	"current_driver": null  # ✅ НОВОЕ: Индекс водителя из gang_members
+	"car": null,
+	"car_condition": 100.0,
+	"car_equipped": false,
+	"current_driver": null
 }
 
 # ===== ДАННЫЕ БАНДЫ =====
@@ -82,36 +83,79 @@ var gang_members = [
 		"equipment": {"helmet": null, "armor": null, "melee": null, "ranged": null, "gadget": null},
 		"inventory": [],
 		"pockets": [null, null, null],
-		"is_active": true  # ✅ Главный всегда активен
+		"is_active": true
 	}
 ]
 
 func _ready():
-	# Загружаем компоненты
+	print("🎮 === ЗАПУСК ИГРЫ ===")
+
+	# ✅ ШАГ 1: Загружаем компоненты
 	game_initializer = preload("res://scripts/core/game_initializer.gd").new()
 	input_handler = preload("res://scripts/core/input_handler.gd").new()
-	
-	# Инициализация
+	print("✅ Компоненты загружены")
+
+	# ✅ ШАГ 2: Загружаем autoload системы
 	game_initializer.load_autoload_systems(self)
+	print("✅ Autoload системы загружены")
+
+	# ✅ ШАГ 3: Проверяем критические системы
+	if not time_system:
+		push_error("❌ КРИТИЧНО: TimeSystem не загружен!")
+	else:
+		print("✅ TimeSystem загружен: " + time_system.get_date_time_string())
+
+	if not log_system:
+		push_error("❌ КРИТИЧНО: LogSystem не загружен!")
+	else:
+		print("✅ LogSystem загружен")
+
+	if not bar_system:
+		push_warning("⚠️ BarSystem не загружен!")
+	else:
+		print("✅ BarSystem загружен")
+
+	if not car_system:
+		push_warning("⚠️ CarSystem не загружен!")
+	else:
+		print("✅ CarSystem загружен")
+
+	# ✅ ШАГ 4: Настройка сетки и менеджеров
 	game_initializer.setup_grid_and_movement(self)
 	game_initializer.initialize_managers(self)
 	game_initializer.setup_game_systems(self)
+
+	# ✅ ШАГ 5: Подключаем сигналы ПОСЛЕ создания UI
 	game_initializer.connect_signals(self)
-	
-	# ✅ НОВОЕ: Инициализируем систему логов
+	print("✅ Сигналы подключены")
+
+	# ✅ ШАГ 6: Проверяем ui_controller
+	if not ui_controller:
+		push_error("❌ КРИТИЧНО: ui_controller не создан!")
+	else:
+		print("✅ ui_controller создан")
+
+	# ✅ ШАГ 7: Добавляем первые логи
 	if log_system:
 		log_system.add_log("🎮 Игра запущена!", "info")
 		log_system.add_log("📍 Тверь, 02.03.1992", "info")
-	
+
+	# ✅ ШАГ 8: Показываем интро
 	show_intro_text()
 
-	# ✅ КРИТИЧНО: Инициализируем UI и время ПОСЛЕ intro
+	# ✅ ШАГ 9: Инициализируем UI и время ПОСЛЕ intro
 	await get_tree().create_timer(0.5).timeout
-	update_ui()
-	update_time_ui()
-	print("⏰ Время и UI инициализированы при запуске")
 
-	print("✅ Игра готова! (РЕФАКТОРИНГ + ЛОГИ + БАР + МАШИНЫ)")
+	# ✅ КРИТИЧНО: Обновляем UI и время
+	if ui_controller:
+		ui_controller.update_ui()
+		print("✅ UI обновлен")
+
+	# ✅ КРИТИЧНО: Обновляем время на UI
+	update_time_ui()
+	print("✅ Время инициализировано на UI")
+
+	print("✅ === ИГРА ГОТОВА ===")
 
 # ===== ОБРАБОТКА ВВОДА =====
 func _unhandled_input(event):
@@ -123,86 +167,69 @@ func show_location_menu(location_name: String):
 	current_location = location_name
 	menu_open = true
 	print("🏢 Открываем меню: " + location_name)
-	
-	# ✅ НОВОЕ: Логируем посещение
-	if log_system:
-		log_system.add_movement_log("📍 Зашли в: " + location_name)
-	
+
+	# ✅ ХУДОЖЕСТВЕННЫЙ текст → в лог
+	add_to_log("📍 Зашли в: " + location_name)
+
 	var old_menu = get_node_or_null("BuildingMenu")
 	if old_menu:
 		old_menu.queue_free()
 		await get_tree().process_frame
-	
+
 	var building_menu_script = load("res://scripts/ui/building_menu.gd")
 	var building_menu = building_menu_script.new()
 	building_menu.name = "BuildingMenu"
 	add_child(building_menu)
-	
+
 	var actions = locations[location_name]["actions"]
 	building_menu.setup(location_name, actions)
-	
+
 	building_menu.action_selected.connect(func(action_index):
 		handle_location_action(action_index)
 	)
-	
+
 	building_menu.menu_closed.connect(func():
-		close_location_menu()  # ✅ Только по кнопке "Закрыть"
-)
+		close_location_menu()
+	)
 
 func handle_location_action(action_index: int):
 	if current_location == null:
 		return
 
-	# ✅============ НОВЫЙ ФИКС ============
-	# Перехватываем управление для Бара и Автосалона,
-	# так как action_handler.gd, похоже, их не обрабатывает.
-	
+	print("🎯 Действие %d в локации %s" % [action_index, current_location])
+
+	# ✅ ОБРАБОТКА АВТОСАЛОНА
 	if current_location == "АВТОСАЛОН":
-		if action_index == 0: # "🚗 Выбор машины"
-			if car_system:
-				print("✅ Открываем автосалон через car_system")
-				close_location_menu()
-				car_system.show_car_dealership_menu(self, player_data)
-			else:
-				print("❌ car_system = null! Система не загружена!")
-				show_message("❌ Автосалон недоступен")
-			return
-
-		if action_index == 1: # "🔧 Починить машину"
-			if car_system:
-				print("✅ Открываем автосалон (ремонт) через car_system")
-				close_location_menu()
-				car_system.show_car_dealership_menu(self, player_data)
-			else:
-				print("❌ car_system = null!")
-				show_message("❌ Автосалон недоступен")
-			return
-
-		if action_index == 2: # "🚪 Уйти"
+		if car_system:
+			print("✅ Передаём управление CarSystem")
 			close_location_menu()
-			return
+			car_system.show_car_dealership_menu(self, player_data)
+		else:
+			print("❌ CarSystem не загружен!")
+			show_message("❌ Автосалон недоступен")
+		return
 
+	# ✅ ОБРАБОТКА БАРА
 	if current_location == "БАР":
-		if action_index == 0 or action_index == 1:
+		if action_index == 0 or action_index == 1:  # Отдохнуть или Бухать
 			if bar_system:
-				print("✅ Открываем бар через bar_system")
+				print("✅ Передаём управление BarSystem")
 				close_location_menu()
 				bar_system.show_bar_menu(self, player_data, gang_members)
 			else:
-				print("❌ bar_system = null! Система не загружена!")
+				print("❌ BarSystem не загружен!")
 				show_message("❌ Бар недоступен")
-			return
-
-		if action_index == 2: # "🚪 Уйти"
+		elif action_index == 2:  # Уйти
 			close_location_menu()
-			return
-	
-	# ✅============ КОНЕЦ ФИКСА ============
+		return
 
-	# Для всего остального (или если car_system/bar_system нет)
-	# используем старую логику
-	action_handler.handle_location_action(current_location, action_index, self) 
-	
+	# ✅ ОБРАБОТКА ОСТАЛЬНЫХ ЛОКАЦИЙ через action_handler
+	if action_handler:
+		action_handler.handle_location_action(current_location, action_index, self)
+	else:
+		print("❌ ActionHandler не создан!")
+
+	# ✅ Время на действие
 	if time_system:
 		var time_cost = randi_range(5, 15)
 		time_system.add_minutes(time_cost)
@@ -217,15 +244,21 @@ func close_location_menu():
 
 func on_location_clicked(location_name: String):
 	show_location_menu(location_name)
-	action_handler.trigger_location_events(location_name, self)
+	if action_handler:
+		action_handler.trigger_location_events(location_name, self)
 
 # ===== КНОПКИ НИЖНЕЙ ПАНЕЛИ =====
 func on_bottom_button_pressed(button_name: String):
+	if not menu_manager:
+		print("❌ menu_manager не создан!")
+		return
+
 	match button_name:
 		"Банда":
-			menu_manager.show_gang_menu(self) # ✅ ФИКС: Используем ЛОКАЛЬНУЮ переменную, как для "Квесты" и "Меню"
+			menu_manager.show_gang_menu(self)
 		"Районы":
-			districts_menu_manager.show_districts_menu(self)
+			if districts_menu_manager:
+				districts_menu_manager.show_districts_menu(self)
 		"Квесты":
 			menu_manager.show_quests_menu(self)
 		"Меню":
@@ -233,38 +266,41 @@ func on_bottom_button_pressed(button_name: String):
 
 # ===== ОБНОВЛЕНИЕ UI =====
 func update_ui():
-	ui_controller.update_ui()
-	clicker_system.player_data = player_data
+	if ui_controller:
+		ui_controller.update_ui()
+	if clicker_system:
+		clicker_system.player_data = player_data
 	update_time_ui()
 
 func update_time_ui():
 	if not ui_controller:
-		print("⚠️ update_time_ui: НЕТ ui_controller!")
-		print("   ui_controller = " + str(ui_controller))
+		print("⚠️ update_time_ui: ui_controller = null")
 		return
+
 	if not time_system:
-		print("⚠️ update_time_ui: НЕТ time_system!")
-		print("   time_system = " + str(time_system))
+		print("⚠️ update_time_ui: time_system = null")
 		return
 
 	var ui_layer = ui_controller.get_ui_layer()
 	if not ui_layer:
-		print("⚠️ update_time_ui: НЕТ ui_layer!")
+		print("⚠️ update_time_ui: ui_layer = null")
 		return
 
 	var date_label = ui_layer.get_node_or_null("DateLabel")
-	if date_label:
-		var new_time = time_system.get_date_time_string()
-		date_label.text = new_time
-		print("✅ ВРЕМЯ ОБНОВЛЕНО НА UI: " + new_time)
-	else:
-		print("⚠️ update_time_ui: DateLabel НЕ НАЙДЕН!")
+	if not date_label:
+		print("⚠️ update_time_ui: DateLabel не найден в ui_layer")
+		return
 
-# ✅ ТЕХНИЧЕСКИЙ текст - ТОЛЬКО в центр экрана (БЕЗ логов!)
+	var new_time = time_system.get_date_time_string()
+	date_label.text = new_time
+	print("✅ ВРЕМЯ ОБНОВЛЕНО: " + new_time)
+
+# ✅ ТЕХНИЧЕСКИЙ текст → ТОЛЬКО в центр экрана
 func show_message(text: String):
-	ui_controller.show_message(text, self)
+	if ui_controller:
+		ui_controller.show_message(text, self)
 
-# ✅ ХУДОЖЕСТВЕННЫЙ текст - ТОЛЬКО в лог событий (БЕЗ центра экрана!)
+# ✅ ХУДОЖЕСТВЕННЫЙ текст → ТОЛЬКО в лог событий
 func add_to_log(text: String):
 	if not log_system:
 		return
@@ -280,16 +316,19 @@ func add_to_log(text: String):
 	# БЕЖЕВО-ЖЕЛТЫЙ - новости, оповещения
 	elif "📅" in text or "Новый день" in text or "🌅" in text:
 		log_system.add_news_log(clean_text)
-	# Остальное - обычные события
+	# Остальное - обычные события (серый/белый)
 	else:
 		log_system.add_event_log(clean_text)
 
 # ===== СОБЫТИЯ ВРЕМЕНИ =====
 func _on_time_changed(_hour: int, _minute: int):
+	print("⏰ СИГНАЛ: time_changed -> обновляем UI")
 	update_time_ui()
 
 func _on_day_changed(_day: int, _month: int, _year: int):
+	print("📅 СИГНАЛ: day_changed")
 	show_message("📅 Новый день!")
+
 	if districts_system:
 		var daily_income = districts_system.get_total_player_income()
 		if daily_income > 0:
@@ -298,6 +337,7 @@ func _on_day_changed(_day: int, _month: int, _year: int):
 			update_ui()
 
 func _on_time_of_day_changed(period: String):
+	print("🌅 СИГНАЛ: time_of_day_changed -> " + period)
 	var messages = {
 		"утро": "🌅 Наступило утро",
 		"день": "☀️ День",
@@ -312,7 +352,7 @@ func show_intro_text():
 	var intro_layer = CanvasLayer.new()
 	intro_layer.name = "IntroLayer"
 	add_child(intro_layer)
-	
+
 	var label = Label.new()
 	label.text = "Тверь. Начало пути.\n02.03.1992, 10:00"
 	label.position = Vector2(150, 500)
@@ -320,19 +360,18 @@ func show_intro_text():
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	intro_layer.add_child(label)
-	
+
 	await get_tree().create_timer(3.0).timeout
 	intro_layer.queue_free()
-	
-	# ✅ ИСПРАВЛЕНО: Проверяем не только флаг, но и player_data
+
 	if not first_battle_started and not player_data.get("first_battle_completed", false):
 		first_battle_started = true
-		player_data["first_battle_completed"] = true  # ✅ Сохраняем в данные
-		
+		player_data["first_battle_completed"] = true
+
 		await get_tree().create_timer(1.0).timeout
 		show_message("⚠️ ОБУЧЕНИЕ: Встретился гопник!")
 		await get_tree().create_timer(1.5).timeout
-		
+
 		if battle_manager:
 			battle_manager.start_battle(self, "gopnik", false)
 
@@ -341,27 +380,27 @@ func show_level_up_message(stat_name: String, new_level: int):
 	var level_up_layer = CanvasLayer.new()
 	level_up_layer.name = "LevelUpLayer"
 	add_child(level_up_layer)
-	
+
 	var bg = ColorRect.new()
 	bg.size = Vector2(500, 200)
 	bg.position = Vector2(110, 540)
 	bg.color = Color(0.1, 0.3, 0.1, 0.95)
 	level_up_layer.add_child(bg)
-	
+
 	var title = Label.new()
 	title.text = "⭐ ПОВЫШЕНИЕ УРОВНЯ! ⭐"
 	title.position = Vector2(200, 560)
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3, 1.0))
 	level_up_layer.add_child(title)
-	
+
 	var stat_label = Label.new()
 	stat_label.text = stat_name + " → " + str(new_level)
 	stat_label.position = Vector2(280, 620)
 	stat_label.add_theme_font_size_override("font_size", 32)
 	stat_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1.0))
 	level_up_layer.add_child(stat_label)
-	
+
 	var timer = Timer.new()
 	timer.wait_time = 3.0
 	timer.one_shot = true
@@ -395,25 +434,28 @@ func on_quest_completed(quest_id: String):
 
 # ===== РАЙОНЫ =====
 func on_district_captured(district_name: String, by_gang: String):
-	districts_menu_manager.show_district_captured_notification(self, district_name, by_gang)
+	if districts_menu_manager:
+		districts_menu_manager.show_district_captured_notification(self, district_name, by_gang)
 
 # ===== БОЙ =====
 func show_enemy_selection_menu():
-	battle_manager.show_enemy_selection_menu(self)
+	if battle_manager:
+		battle_manager.show_enemy_selection_menu(self)
 
 func start_battle(enemy_type: String = "gopnik"):
-	battle_manager.start_battle(self, enemy_type)
+	if battle_manager:
+		battle_manager.start_battle(self, enemy_type)
 
 func show_districts_menu():
-	districts_menu_manager.show_districts_menu(self)
+	if districts_menu_manager:
+		districts_menu_manager.show_districts_menu(self)
 
 # ===== ЗАГРУЗКА ИГРЫ =====
 func load_game_from_data(save_data: Dictionary):
 	if save_data.is_empty():
 		show_message("❌ Нет данных для загрузки!")
 		return
-	
-	# Восстанавливаем игрока
+
 	if save_data.has("player"):
 		var player = save_data["player"]
 		player_data["balance"] = player.get("balance", 0)
@@ -423,36 +465,27 @@ func load_game_from_data(save_data: Dictionary):
 		player_data["equipment"] = player.get("equipment", {}).duplicate(true)
 		player_data["inventory"] = player.get("inventory", []).duplicate(true)
 		player_data["pockets"] = player.get("pockets", [null, null, null]).duplicate(true)
-		
-		# ✅ ВАЖНО: Восстанавливаем флаг первого боя
 		player_data["first_battle_completed"] = player.get("first_battle_completed", true)
-		
-		# ✅ НОВОЕ: Восстанавливаем данные машины
 		player_data["car"] = player.get("car", null)
 		player_data["car_condition"] = player.get("car_condition", 100.0)
 		player_data["car_equipped"] = player.get("car_equipped", false)
 		player_data["current_driver"] = player.get("current_driver", null)
-		
+
 		if player.has("current_square"):
 			player_data["current_square"] = player["current_square"]
-	
-	# Восстанавливаем банду
+
 	if save_data.has("gang"):
 		gang_members = save_data["gang"].duplicate(true)
-		
-		# Инициализируем is_active
 		for i in range(gang_members.size()):
 			if not gang_members[i].has("is_active"):
 				gang_members[i]["is_active"] = (i == 0)
-	
-	# ✅ ИСПРАВЛЕНО: Восстанавливаем квесты и районы
+
 	if save_manager:
 		if save_data.has("quests"):
 			save_manager.restore_quest_data(save_data["quests"])
-		
 		if save_data.has("districts"):
 			save_manager.restore_districts_data(save_data["districts"])
-	
+
 	update_ui()
 	show_message("✅ Игра загружена!")
 	print("📂 Загружено - первый бой: %s" % player_data["first_battle_completed"])
