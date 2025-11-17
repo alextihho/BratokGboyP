@@ -14,14 +14,37 @@ func _ready():
 	layer = 200  # ✅ КРИТИЧНО! ВЫШЕ сетки (5) и UI (50)
 	items_db = get_node("/root/ItemsDB")
 
+# ✅ НОВОЕ: Функция для показа инвентаря члена банды
+func show_inventory_for_member(main_node: Node, member_index: int, p_gang_members: Array, p_player_data: Dictionary):
+	# Создаем новый экземпляр инвентаря
+	var inventory_scene = InventoryManager.new()
+	inventory_scene.name = "InventoryMenu"
+	main_node.add_child(inventory_scene)
+
+	# Настраиваем данные
+	if member_index == 0:
+		# Главный игрок
+		inventory_scene.setup(p_player_data, member_index, p_gang_members)
+	else:
+		# Член банды
+		if member_index < p_gang_members.size():
+			inventory_scene.setup(p_gang_members[member_index], member_index, p_gang_members)
+
+	# Подключаем сигнал возврата
+	inventory_scene.back_to_gang.connect(func():
+		var gang_mgr = main_node.get_node_or_null("/root/GangManager")
+		if gang_mgr:
+			gang_mgr.show_gang_menu(main_node, p_gang_members)
+	)
+
 func setup(p_data, member_index: int, p_gang_members: Array):
 	player_data = p_data
 	current_member_index = member_index
 	gang_members = p_gang_members
-	
+
 	if not player_data.has("pockets"):
 		player_data["pockets"] = [null, null, null]
-	
+
 	create_ui()
 
 func create_ui():

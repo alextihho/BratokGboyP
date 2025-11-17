@@ -113,6 +113,10 @@ func add_event_log(message: String):
 func add_movement_log(message: String):
 	add_log(message, "movement")
 
+func add_time_log(message: String):
+	"""Обновление времени - голубой цвет"""
+	add_log(message, "time")
+
 # ✅ Обновление отображения
 func update_log_display():
 	if not log_container or not is_instance_valid(log_container):
@@ -157,6 +161,8 @@ func get_category_color(category: String) -> Color:
 			return Color(1.0, 0.7, 0.3)  # Оранжевый
 		"movement":
 			return Color(0.7, 0.7, 0.7)  # Серый
+		"time":  # Время
+			return Color(0.6, 0.9, 1.0)  # Светло-голубой
 		_:
 			return Color(0.9, 0.9, 0.9)  # Почти белый
 

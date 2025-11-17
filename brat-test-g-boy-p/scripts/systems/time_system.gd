@@ -34,44 +34,49 @@ func add_hours(hours: int):
 func add_minutes(minutes: int):
 	if paused:
 		return
-	
+
 	var old_hour = current_time["hour"]
 	var old_day = current_time["day"]
-	
+
 	current_time["minute"] += minutes
-	
+
 	# Перенос минут в часы
 	while current_time["minute"] >= 60:
 		current_time["minute"] -= 60
 		current_time["hour"] += 1
-	
+
 	# Перенос часов в дни
 	while current_time["hour"] >= 24:
 		current_time["hour"] -= 24
 		current_time["day"] += 1
-	
+
 	# Перенос дней в месяцы
 	var days_in_month = get_days_in_month(current_time["month"], current_time["year"])
 	while current_time["day"] > days_in_month:
 		current_time["day"] -= days_in_month
 		current_time["month"] += 1
-		
+
 		if current_time["month"] > 12:
 			current_time["month"] = 1
 			current_time["year"] += 1
-		
+
 		days_in_month = get_days_in_month(current_time["month"], current_time["year"])
-	
+
 	# Сигналы
 	time_changed.emit(current_time["hour"], current_time["minute"])
-	
+
 	if old_hour != current_time["hour"]:
 		check_time_of_day_change(old_hour, current_time["hour"])
-	
+
 	if old_day != current_time["day"]:
 		day_changed.emit(current_time["day"], current_time["month"], current_time["year"])
-	
+
 	print("⏰ Текущее время: " + get_date_time_string())
+
+	# ✅ НОВОЕ: Логирование времени в игровые логи
+	var log_system = get_node_or_null("/root/LogSystem")
+	if log_system:
+		log_system.add_time_log("⏰ " + get_time_string())
 
 # Проверка смены периода дня
 func check_time_of_day_change(old_hour: int, new_hour: int):

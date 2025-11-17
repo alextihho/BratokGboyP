@@ -225,11 +225,19 @@ func update_ui():
 
 func update_time_ui():
 	if not ui_controller or not time_system:
+		print("⚠️ update_time_ui: ui_controller или time_system недоступны")
 		return
 	var ui_layer = ui_controller.get_ui_layer()
+	if not ui_layer:
+		print("⚠️ update_time_ui: ui_layer не найден")
+		return
 	var date_label = ui_layer.get_node_or_null("DateLabel")
 	if date_label:
-		date_label.text = time_system.get_date_time_string()
+		var new_time = time_system.get_date_time_string()
+		date_label.text = new_time
+		print("✅ Время обновлено в UI: " + new_time)
+	else:
+		print("⚠️ update_time_ui: DateLabel не найден в UI")
 
 func show_message(text: String):
 	ui_controller.show_message(text, self)
@@ -253,6 +261,7 @@ func show_message(text: String):
 
 # ===== СОБЫТИЯ ВРЕМЕНИ =====
 func _on_time_changed(_hour: int, _minute: int):
+	print("📅 _on_time_changed вызван: %02d:%02d" % [_hour, _minute])
 	update_time_ui()
 
 func _on_day_changed(_day: int, _month: int, _year: int):
