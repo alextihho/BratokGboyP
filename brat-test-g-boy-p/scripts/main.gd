@@ -231,13 +231,20 @@ func update_ui():
 	update_time_ui()
 
 func update_time_ui():
-	if not ui_controller or not time_system:
-		print("⚠️ update_time_ui: НЕТ ui_controller или time_system!")
+	if not ui_controller:
+		print("⚠️ update_time_ui: НЕТ ui_controller!")
+		print("   ui_controller = " + str(ui_controller))
 		return
+	if not time_system:
+		print("⚠️ update_time_ui: НЕТ time_system!")
+		print("   time_system = " + str(time_system))
+		return
+
 	var ui_layer = ui_controller.get_ui_layer()
 	if not ui_layer:
 		print("⚠️ update_time_ui: НЕТ ui_layer!")
 		return
+
 	var date_label = ui_layer.get_node_or_null("DateLabel")
 	if date_label:
 		var new_time = time_system.get_date_time_string()
